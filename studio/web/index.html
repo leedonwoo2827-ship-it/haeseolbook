@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>해설북 스튜디오</title>
+<style>
+:root{--hd:#1f4e79;--bg:#f2f4f7;--card:#fff;--ink:#1b2430;--sub:#6b7686;--line:#e3e7ee;--ok:#2f8a4a;--okbg:#e5f4e9;--warn:#b26b00;--warnbg:#fff1d6;--bad:#c0392b;--badbg:#fde8e6;--teal:#127566;--navy:#1f3c6e}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 'Pretendard Variable',Pretendard,system-ui,'Malgun Gothic',sans-serif}
+header{background:var(--hd);color:#fff;padding:12px 18px;display:flex;flex-wrap:wrap;align-items:center;gap:12px 18px}
+header h1{margin:0;font-size:20px;white-space:nowrap}
+header select{font:inherit;background:#13304d;color:#fff;border:1px solid #4d7398;border-radius:8px;padding:6px 10px}
+.st{display:flex;gap:14px;flex-wrap:wrap;font-size:14px}.st span::before{content:'●';margin-right:4px;color:#7ee39a}.st span.no::before{color:#ff8a7a}.st span.no{opacity:.85}
+nav{display:flex;gap:4px;margin-left:auto}
+nav button{font:inherit;font-weight:700;font-size:17px;background:none;border:0;color:#fff;padding:8px 14px;border-radius:10px;cursor:pointer}
+nav button.on{background:#fff;color:var(--hd)}
+.stopbar{width:100%;display:flex;gap:10px;align-items:center}
+.stopbar button{font:inherit;background:#2c5f8f;border:1px solid #6d95bd;color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer}
+.stopbar button:disabled{opacity:.5;cursor:default}
+.stopbar .run{font-size:13px;opacity:.9}
+main{padding:18px;max-width:1700px;margin:0 auto}
+.tiles{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px}@media(max-width:1000px){.tiles{grid-template-columns:repeat(3,1fr)}}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 18px}.tile small{color:var(--sub)}.tile b{display:block;font-size:30px;margin-top:4px}.tile em{font-style:normal;color:var(--sub);font-size:13px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.bar .lab{font-weight:700}.bar .sel{color:var(--sub);font-size:14px}
+.b{font:inherit;border:1px solid #cfd6e0;background:#fff;border-radius:9px;padding:7px 13px;cursor:pointer}
+.b:hover{border-color:#8fa3bc}.b:disabled{opacity:.4;cursor:default}
+.b.teal{background:var(--teal);color:#fff;border-color:var(--teal);font-weight:700}.b.navy{background:var(--navy);color:#fff;border-color:var(--navy);font-weight:700}
+.b.red{background:#c0392b;color:#fff;border-color:#c0392b;font-weight:700}
+.sep{width:1px;height:26px;background:var(--line)}
+.right{margin-left:auto;display:flex;gap:6px;align-items:center;color:var(--sub);font-size:14px}
+table{width:100%;border-collapse:collapse;font-size:14.5px}
+th{text-align:left;color:#3a4656;font-weight:700;border-bottom:1px solid var(--line);padding:8px 6px}
+td{border-bottom:1px solid #eef1f5;padding:8px 6px;vertical-align:middle}
+tr:hover td{background:#fafbfd}
+.c{display:inline-block;padding:2px 9px;border-radius:99px;font-size:13px;white-space:nowrap}
+.c.ok{background:var(--okbg);color:var(--ok)}.c.warn{background:var(--warnbg);color:var(--warn)}.c.bad{background:var(--badbg);color:var(--bad)}.c.no{color:#aab3c0}
+.muted{color:var(--sub);font-size:13.5px}
+pre.log{background:#141922;color:#dfe6ee;border-radius:10px;padding:10px 12px;height:220px;overflow:auto;font:12.5px/1.5 Consolas,monospace;white-space:pre-wrap;margin:14px 0 0}
+.wait{background:var(--warnbg);border:1px solid #f0c060;border-radius:10px;padding:8px 12px;margin-bottom:12px}
+.grid2{display:grid;grid-template-columns:3fr 2fr;gap:16px}@media(max-width:1100px){.grid2{grid-template-columns:1fr}}
+video,img.pv{width:100%;border-radius:10px;border:1px solid var(--line);background:#000}
+.quiz{border-top:1px dashed var(--line);padding:10px 0}.quiz h3{margin:0;font-size:15px}
+.line{display:grid;grid-template-columns:64px 1fr 1fr;gap:6px;margin:4px 0}
+.line textarea{font:inherit;font-size:13px;border:1px solid var(--line);border-radius:7px;padding:4px 6px;resize:vertical;min-height:34px}
+.tag{font-size:12px;color:var(--sub);align-self:center}
+a{color:#1f5fbf}
+.chap{columns:3;font-size:13px}
+</style>
+</head>
+<body>
+<header>
+  <h1>해설북 · 스튜디오</h1>
+  <select id="subject"></select>
+  <div class="st" id="tools"></div>
+  <nav><button data-tab="src">① 원문</button><button data-tab="make" class="on">② 만들기</button><button data-tab="view">③ 결과 보기</button><button data-tab="post">④ 올리기</button></nav>
+  <div class="stopbar"><button id="stop">■ 멈춤</button><span class="run" id="runinfo"></span><span style="flex:1"></span><a href="http://127.0.0.1:8080/" target="_blank" style="color:#fff">로컬 해설북 열기 ↗</a></div>
+</header>
+<main>
+  <div class="tiles" id="tiles"></div>
+  <div id="waitbox"></div>
+  <section id="tab-make" class="panel">
+    <div class="bar">
+      <span class="lab">고른 회차에</span><span class="sel" id="selinfo">(아직 안 골랐어요)</span>
+      <button class="b" data-st="s0">0 원문·정답</button><button class="b" data-st="s1">1 대본</button><button class="b" data-st="s2">2 판서</button>
+      <button class="b" data-st="s3">3 목소리</button><button class="b" data-st="s4">4 화면</button><button class="b" data-st="s5">5 영상</button>
+      <span class="sep"></span>
+      <button class="b" data-st="s0,s1,s2">▶ 0→2</button><button class="b teal" data-st="s3,s4,s5">▶ 3→5</button><button class="b navy" data-st="s0,s1,s2,s3,s4,s5">▶ 0→5</button>
+      <label class="right"><input type="checkbox" id="force"> 이미 된 것 다시</label>
+    </div>
+    <table><thead><tr><th><input type="checkbox" id="all"></th><th>회차</th><th>시행일</th><th>원문</th><th>대본</th><th>판서</th><th>음성</th><th>화면</th><th>영상</th><th>업로드</th><th>이북</th></tr></thead><tbody id="rows"></tbody></table>
+    <p class="muted">대본·판서는 Claude(구독)를 씁니다. 한도에 걸리면 재설정 시각까지 기다렸다 멈춘 문항부터 이어서 합니다. 끝난 문항·문장·화면은 다시 만들지 않습니다.</p>
+  </section>
+  <section id="tab-src" class="panel" hidden>
+    <h3 style="margin-top:0">원문 (<code>_assets</code>)</h3>
+    <table><thead><tr><th>회차</th><th>시행일</th><th>문제지</th><th>작업</th></tr></thead><tbody id="srcrows"></tbody></table>
+    <p class="muted">새 연도는 <code>_assets/&lt;연도&gt;/</code> 에 문제 PDF와 최종정답 PDF를 넣고 <code>_assets/index.json</code> 에 추가합니다.</p>
+  </section>
+  <section id="tab-view" class="panel" hidden><div id="view"><p class="muted">② 만들기 표에서 회차 이름을 누르세요.</p></div></section>
+  <section id="tab-post" class="panel" hidden>
+    <div class="bar"><span class="lab">유튜브</span><button class="b" id="login">로그인 창 열기 (처음 한 번)</button>
+      <span class="muted">열린 크롬에서 구글 로그인 → 유튜브 스튜디오 오른쪽 위 프로필 → 「계정 전환」에서 올릴 채널(예: 유비온북TV) 선택</span></div>
+    <div class="bar"><span class="lab">고른 회차에</span><span class="sel" id="selinfo2"></span>
+      <select id="vis"><option value="unlisted">일부공개</option><option value="public">공개</option><option value="private">비공개</option></select>
+      <button class="b red" data-st="post">유튜브 업로드</button><button class="b" data-st="link">이북 연동</button><button class="b navy" data-st="post,link">▶ 업로드 → 연동</button>
+      <span class="sep"></span><button class="b" data-st="aside" title="완성 영상을 롱폼 공방 작업 폴더로 복사 — 공방 「④ 올리기」에서 업로드. 올린 뒤 여기서 「이북 연동」을 누르면 그 주소를 가져옵니다">롱폼 공방으로 보내기</button></div>
+    <table><thead><tr><th>회차</th><th>영상</th><th>업로드</th><th>이북</th></tr></thead><tbody id="postrows"></tbody></table>
+    <p class="muted">업로드는 열린 크롬(이 폴더 전용 프로필)에서 자동으로 입력됩니다. 중간에 멈추면 그 창에서 나머지만 직접 마무리하세요(다시 누르면 초안이 하나 더 생깁니다). 업로드 전 「이북 연동」은 영상 없이 교재만 미리 게시합니다.</p>
+  </section>
+  <pre class="log" id="log"></pre>
+</main>
+<script>
+const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
+const fmt=s=>`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
+let O=null, sel=new Set(), subject='컴퓨터일반', viewId=null;
+try{subject=localStorage.getItem('hsb.subject')||subject}catch{}
+async function api(p,o={}){const r=await fetch(p,{headers:{'Content-Type':'application/json'},...o});if(!r.ok){let t=await r.text();try{t=JSON.parse(t).detail||t}catch{};throw new Error(t)}return r.json()}
+const chip=(ok,txt,cls)=>`<span class="c ${ok?(cls||'ok'):'no'}">${esc(txt)}</span>`;
+function label(r){return `${r.year} ${esc(r.booklet)}책형`}
+async function load(){
+  O=await api('/api/overview?subject='+encodeURIComponent(subject));
+  $('#subject').innerHTML=O.subjects.map(s=>`<option ${s===subject?'selected':''}>${esc(s)}</option>`).join('');
+  const t=O.tools;$('#tools').innerHTML=[['claude','Claude'],['supertonic','SuperTonic3'],['ffmpeg','ffmpeg'],['php','PHP'],['chrome_profile','유튜브 로그인 프로필']].map(([k,n])=>`<span class="${t[k]?'':'no'}">${n}</span>`).join('');
+  const T=O.totals;
+  $('#tiles').innerHTML=[['회차',T.rounds],['대본',T.script],['판서',T.marks],['음성',T.voice],['영상',T.video,`총 ${T.minutes}분`],['업로드',T.posted,`이북 연동 ${T.linked}`]].map(([a,b,c])=>`<div class="tile"><small>${a}</small><b>${b}</b>${c?`<em>${c}</em>`:''}</div>`).join('');
+  $('#runinfo').textContent=O.running?`▶ 실행 중: ${O.running}`:'';
+  $('#stop').disabled=!O.running;
+  const w=O.rows.find(r=>r.waiting);
+  $('#waitbox').innerHTML=w?`<div class="wait">⏸ Claude 사용 한도 — <b>${esc(w.waiting.until)}</b> 에 자동으로 이어서 합니다 (${label(w)} · ${esc(w.waiting.no)}번까지 저장됨). 창을 켜 두세요.</div>`:'';
+  $('#rows').innerHTML=O.rows.map(r=>`<tr><td><input type="checkbox" data-k="${esc(r.key)}" ${sel.has(r.key)?'checked':''}></td>
+    <td>${r.exists?`<a href="#" data-view="${esc(r.id)}">${label(r)}</a>`:label(r)}</td><td class="muted">${esc(r.examDate||'')}</td>
+    <td>${chip(r.s0,r.s0?'완료':'—')}</td>
+    <td>${r.exists?chip(r.script===20,`${r.script||0}/20`,r.script===20?'ok':'warn'):chip(false,'—')}</td>
+    <td>${r.marksDone?chip(true,`${r.marks}개`):chip(false,'—')}</td>
+    <td>${r.minutes?esc(r.minutes)+'분':'<span class="c no">—</span>'}</td>
+    <td>${r.frames?chip(true,`${r.frames}컷`):chip(false,'—')}</td>
+    <td>${r.video?chip(true,`완성 ${r.mb||''}MB`):chip(false,'—')}</td>
+    <td>${r.posted?`<a href="${esc(r.posted.url)}" target="_blank">${{unlisted:'일부공개',public:'공개',private:'비공개'}[r.posted.visibility]||'올림'}</a>`:'<span class="c no">—</span>'}</td>
+    <td>${r.linked?chip(true,'연동'):r.preview?chip(true,'미리보기','warn'):chip(false,'—')}</td></tr>`).join('');
+  $('#srcrows').innerHTML=O.rows.map(r=>`<tr><td>${label(r)}</td><td class="muted">${esc(r.examDate||'')}</td><td>${r.exists?`<a href="/api/jobs/${esc(r.id)}/file/paper" target="_blank">문제 PDF</a>`:'<span class="muted">작업을 만들면 열람</span>'}</td><td>${r.exists?chip(true,r.id):'<span class="muted">0 원문을 돌리면 생깁니다</span>'}</td></tr>`).join('');
+  $('#postrows').innerHTML=O.rows.filter(r=>r.video).map(r=>`<tr><td><label><input type="checkbox" data-k="${esc(r.key)}" ${sel.has(r.key)?'checked':''}> ${label(r)}</label></td><td>${chip(true,`${r.minutes}분`)}</td>
+    <td>${r.posted?`<a href="${esc(r.posted.url)}" target="_blank">${esc(r.posted.url)}</a> `:''}<span class="row" style="display:inline-flex;gap:4px"><input class="purl" data-id="${esc(r.id)}" placeholder="직접 올렸으면 유튜브 주소 붙여넣기" style="width:250px"><button class="b" data-purl="${esc(r.id)}">저장</button></span></td><td>${r.linked?chip(true,'연동'):r.preview?chip(true,'미리보기','warn'):chip(false,'—')}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">완성된 영상이 아직 없습니다.</td></tr>';
+  const n=sel.size; const info=n?`(${n}개: ${[...sel].map(k=>k.replace('|',' ')).join(', ')})`:'(아직 안 골랐어요)';
+  $('#selinfo').textContent=info;$('#selinfo2').textContent=info;
+  document.querySelectorAll('button[data-st]').forEach(b=>b.disabled=!!O.running||!n);
+}
+async function logTick(){const r=await fetch('/api/log');const t=await r.text();const el=$('#log');const at=el.scrollTop+el.clientHeight>=el.scrollHeight-20;if(el.textContent!==t){el.textContent=t;if(at)el.scrollTop=el.scrollHeight}}
+document.addEventListener('change',e=>{
+  if(e.target.id==='subject'){subject=e.target.value;try{localStorage.setItem('hsb.subject',subject)}catch{};sel.clear();load()}
+  if(e.target.id==='all'){O.rows.forEach(r=>e.target.checked?sel.add(r.key):sel.delete(r.key));load()}
+  if(e.target.dataset.k){e.target.checked?sel.add(e.target.dataset.k):sel.delete(e.target.dataset.k);load()}
+});
+document.addEventListener('click',async e=>{
+  const nb=e.target.closest('nav button');
+  if(nb){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b===nb));['src','make','view','post'].forEach(t=>$('#tab-'+t).hidden=t!==nb.dataset.tab);return}
+  const sb=e.target.closest('button[data-st]');
+  if(sb){try{await api('/api/run',{method:'POST',body:JSON.stringify({items:[...sel].sort(),stages:sb.dataset.st.split(','),subject,force:$('#force').checked,visibility:$('#vis').value})});load()}catch(x){alert(x.message)}return}
+  if(e.target.id==='stop'){if(confirm('지금 하던 단계를 멈출까요? (끝난 문항·문장은 저장돼 있어 다시 실행하면 이어서 합니다)')){await api('/api/stop',{method:'POST'});load()}return}
+  if(e.target.id==='login'){await api('/api/login',{method:'POST'});return}
+  const pu=e.target.closest('button[data-purl]');
+  if(pu){const inp=document.querySelector(`input.purl[data-id="${pu.dataset.purl}"]`);try{const r=await api(`/api/jobs/${pu.dataset.purl}/posted`,{method:'POST',body:JSON.stringify({url:inp.value,visibility:$('#vis').value})});alert('저장했습니다: '+r.url+' — 이제 그 회차를 체크하고 「이북 연동」을 누르세요.');load()}catch(x){alert(x.message)}return}
+  const v=e.target.closest('a[data-view]');
+  if(v){e.preventDefault();viewId=v.dataset.view;document.querySelector('nav button[data-tab=view]').click();showView();return}
+  const s=e.target.closest('button[data-save]');
+  if(s){const box=s.closest('.quiz');const lines={read:[],solve:[],answer:[]};box.querySelectorAll('.line').forEach(l=>lines[l.dataset.k].push({say:l.querySelector('.say').value,cap:l.querySelector('.cap').value}));
+    await api(`/api/jobs/${viewId}/quiz/${box.dataset.no}`,{method:'PUT',body:JSON.stringify({lines})});s.textContent='저장됨 — 3→5 다시 돌리면 반영';setTimeout(()=>s.textContent='저장',2500)}
+});
+async function showView(){
+  if(!viewId)return;
+  const d=await api(`/api/jobs/${viewId}`);
+  $('#view').innerHTML=`<h3 style="margin-top:0">${esc(d.title)} <span class="muted">${esc(d.id)}${d.duration?' · '+fmt(d.duration):''}</span></h3>
+  <div class="grid2"><div>${d.hasVideo?`<video src="/api/jobs/${d.id}/file/video?ts=${Date.now()}" controls preload="metadata"></video>`:'<p class="muted">영상이 아직 없습니다.</p>'}
+    ${d.chapters.length?`<div class="chap">${d.chapters.map(c=>`<div>${fmt(c.start)} ${esc(c.title)}</div>`).join('')}</div>`:''}</div>
+  <div>${d.hasThumb?`<img class="pv" src="/api/jobs/${d.id}/file/thumb?ts=${Date.now()}">`:''}<p><b>${esc(d.youtube.title||'')}</b></p>
+    ${d.posted?`<p>유튜브: <a href="${esc(d.posted.url)}" target="_blank">${esc(d.posted.url)}</a></p>`:''}
+    <p><a href="/api/jobs/${d.id}/file/contact?no=1" target="_blank">모아보기(검수용) 1</a> · <a href="/api/jobs/${d.id}/file/contact?no=2" target="_blank">2</a> · <a href="/api/jobs/${d.id}/file/contact?no=3" target="_blank">3</a></p></div></div>
+  <h3>문항별 대본 · 판서</h3><p class="muted">고친 뒤 「저장」 → ② 만들기에서 그 회차를 골라 「▶ 3→5」 (바뀐 문장만 다시 만듭니다). 대본 자체를 새로 쓰려면 「1 대본」+「이미 된 것 다시」.</p>
+  ${d.quizzes.map(q=>`<div class="quiz" data-no="${q.no}"><div class="bar" style="margin:0 0 4px"><h3>${q.no}. ${esc(q.title)}</h3><span class="c warn">정답 ${esc((q.answers||[]).join(', '))}</span><span class="muted">판서 ${q.marks}개</span>
+    <a href="/api/jobs/${d.id}/file/frame?no=${q.no}" target="_blank">판서 화면 보기</a><span style="flex:1"></span><button class="b" data-save="${q.no}">저장</button></div>
+    ${['read','solve','answer'].map(k=>q.lines[k].map((l,i)=>`<div class="line" data-k="${k}"><span class="tag">${{read:'소개',solve:'풀이',answer:'정답'}[k]} ${i+1}</span><textarea class="say">${esc(l.say)}</textarea><textarea class="cap">${esc(l.cap)}</textarea></div>`).join('')).join('')}</div>`).join('')}`;
+}
+setInterval(()=>{if(!document.querySelector('textarea:focus,select:focus,input.purl:focus')&&!document.querySelector('input.purl')?.value)load()},3000);
+setInterval(logTick,2000);
+load();logTick();
+</script>
+</body>
+</html>

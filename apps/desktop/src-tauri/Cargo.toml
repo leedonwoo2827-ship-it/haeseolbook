@@ -1,0 +1,19 @@
+[package]
+name = "haeseolbook"
+version = "0.1.0"
+description = "해설북 데스크톱 셸 (출판사 사이트의 PWA 를 띄우고 딥링크·캡처 차단을 더함)"
+edition = "2021"
+
+[lib]
+name = "haeseolbook_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-deep-link = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
+url = "2"

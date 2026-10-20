@@ -1,0 +1,19 @@
+{
+  "name": "haeseolbook",
+  "private": true,
+  "version": "0.1.0",
+  "description": "기술직 공무원 기출 + 유튜브 해설영상 연동 필기 이북 (PWA 단일코드 + PHP/MySQL 서버, Tauri/Capacitor 래핑)",
+  "workspaces": [
+    "packages/*",
+    "apps/web"
+  ],
+  "scripts": {
+    "build:shared": "npm run build -w @hsb/shared",
+    "build": "npm run build:shared && npm run build -w @hsb/web",
+    "dev:web": "npm run dev -w @hsb/web",
+    "test": "npm run build:shared && npm run test -w @hsb/shared"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

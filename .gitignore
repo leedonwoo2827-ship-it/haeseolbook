@@ -1,0 +1,44 @@
+# 의존성·빌드 산출물
+node_modules/
+dist/
+*.tsbuildinfo
+deploy/out/
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
+apps/mobile/android/
+apps/mobile/ios/
+e2e/test-results/
+e2e/playwright-report/
+
+# 비밀·로컬 설정 (예시 파일만 올린다)
+.env
+.env.*
+!.env.example
+server/config.php
+server/var/
+server/storage/
+
+# 콘텐츠: 회사 저작물(기출·문제집·영상)은 저장소에 올리지 않는다.
+# 샘플은 tools/pipeline/make_sample.py 로 다시 만든다.
+content/
+*.hsbpkg.zip
+*.mp4
+*.mov
+*.mkv
+
+.DS_Store
+Thumbs.db
+
+# 퍼블릭 저장소: 원천 자료·모델·로그인·작업물은 올리지 않는다
+_assets/
+_private/
+assets/supertonic/
+profiles/
+studio/jobs/
+tools/php/
+.venv/
+logs/
+__pycache__/
+*.pyc
+server/config.lan.php
+_plan/

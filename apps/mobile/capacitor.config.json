@@ -1,0 +1,16 @@
+{
+  "appId": "kr.co.ubion.haeseolbook",
+  "appName": "해설북",
+  "webDir": "www",
+  "server": {
+    "url": "https://axexam.mycafe24.com/exam/ebook/",
+    "allowNavigation": ["axexam.mycafe24.com"],
+    "cleartext": false
+  },
+  "appendUserAgent": "HaeseolbookApp/0.1 (capacitor)",
+  "plugins": {
+    "SplashScreen": { "launchShowDuration": 0 }
+  },
+  "android": { "allowMixedContent": false },
+  "ios": { "contentInset": "always" }
+}

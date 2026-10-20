@@ -1,0 +1,13 @@
+{
+  "name": "@hsb/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "해설북 데스크톱 셸 (Tauri 2) — 출판사 사이트의 PWA 를 띄운다. Rust 툴체인 필요",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.1.0"
+  }
+}

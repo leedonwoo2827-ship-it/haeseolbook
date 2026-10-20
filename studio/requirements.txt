@@ -1,0 +1,10 @@
+# 해설북 스튜디오 (python -m studio) — setup.bat 이 .venv 에 설치한다
+numpy>=1.26
+onnxruntime>=1.17
+pyyaml>=6.0
+pymupdf>=1.24
+pillow>=10.0
+requests>=2.31
+fastapi>=0.110
+uvicorn>=0.29
+playwright>=1.45

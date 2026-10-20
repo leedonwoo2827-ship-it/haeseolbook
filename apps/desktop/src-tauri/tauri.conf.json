@@ -1,0 +1,38 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "해설북",
+  "mainBinaryName": "haeseolbook",
+  "version": "0.1.0",
+  "identifier": "kr.co.ubion.haeseolbook",
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "해설북",
+        "url": "https://axexam.mycafe24.com/exam/ebook/",
+        "width": 1440,
+        "height": 900,
+        "minWidth": 900,
+        "minHeight": 600,
+        "contentProtected": true,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 HaeseolbookApp/0.1 (tauri)"
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "dmg", "appimage", "deb"],
+    "icon": ["icons/icon.png"],
+    "publisher": "Ubion",
+    "shortDescription": "기출 원문 위에 필기하며 문항별 유튜브 해설을 보는 이북",
+    "windows": { "nsis": { "languages": ["Korean"], "installMode": "currentUser" } }
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": { "schemes": ["haeseolbook"] }
+    }
+  }
+}

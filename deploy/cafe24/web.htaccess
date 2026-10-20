@@ -1,0 +1,21 @@
+# www/exam/ebook/.htaccess — PWA(SPA) 라우팅. api/ 는 자체 .htaccess 가 처리한다.
+Options -Indexes
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^api/ - [L]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^ index.html [L]
+</IfModule>
+<IfModule mod_headers.c>
+  # 서비스 워커·HTML 은 항상 새로 받고, 해시가 붙은 정적 자원은 오래 캐시
+  <FilesMatch "^(sw\.js|index\.html|manifest\.webmanifest|registerSW\.js)$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+  <FilesMatch "\.(js|css|woff2)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+</IfModule>
+<IfModule mod_mime.c>
+  AddType application/manifest+json .webmanifest
+</IfModule>

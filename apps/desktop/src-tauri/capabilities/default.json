@@ -1,0 +1,10 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "원격(출판사 사이트) 페이지에 외부 브라우저 열기만 허용 — 구글·카카오 로그인은 시스템 브라우저에서 진행",
+  "windows": ["main"],
+  "remote": { "urls": ["https://axexam.mycafe24.com/*"] },
+  "permissions": [
+    "opener:allow-open-url"
+  ]
+}
