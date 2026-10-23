@@ -132,6 +132,8 @@ function seed(string $dir): array
                 'quiz_id' => isset($r['quizNo']) ? "{$id}-q{$r['quizNo']}" : null,
             ] + $bbox);
         }
+        // 영상 연결은 패키지가 정본 — 이번 패키지에 없는 예전 영상 구간은 지운다
+        Db::exec('UPDATE hsb_quizzes SET youtube_id = NULL, start_sec = NULL, end_sec = NULL, cues = NULL WHERE book_id = ?', [$id]);
         apply_videos($id, $videos);
     });
     return ['id' => $id, 'pages' => count($pages), 'quizzes' => count($quizzes), 'regions' => count($regions), 'videos' => count($videos)];

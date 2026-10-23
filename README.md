@@ -30,7 +30,7 @@
 | s3 목소리 | SuperTonic3 F1, 문장 캐시 | `audio/narration.wav`, `timing.json` |
 | s4 화면 | 「단정 스케치북」 테마. 원문 전체 위에 판서가 말에 맞춰 그려진다 | `boards/frames/`, `frames.json` |
 | s5 영상 | 1920×1080 mp4, 자막, 썸네일, 유튜브 챕터 | `out/<작업>.mp4`, `out/chapters.txt` |
-| s6 업로드 | 유튜브 Studio 자동 입력(기본 일부공개) | `state.json`의 `posted` |
+| s6 업로드 | 유튜브 Studio 자동 입력(기본 일부공개). 대시보드 ④ 「🚀 업로드 패널 열기」 → 오른쪽 올리기 패널 + 왼쪽 그 채널의 Studio. 채널마다 Chrome 프로필(`profiles/accounts.json`), 올린 뒤 채널 이름을 확인해 기록 | `state.json`의 `posted` |
 | s7 연동 | 문항별 영상 구간과 판서 포인터를 패키지로 만들어 로컬 해설북에 게시 | `content/dist/*.hsbpkg.zip` |
 
 판서 표시:

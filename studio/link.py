@@ -64,7 +64,7 @@ def run(job: Job, youtube_id: Optional[str] = None, version: Optional[str] = Non
                            "--version", version, "--out", str(dist)], capture_output=True, encoding="utf-8", errors="replace")
     if proc.returncode != 0:
         raise RuntimeError(f"패키징 실패: {proc.stderr[-500:]}")
-    pkg = dist / f"{job.id}-{version}.hsbpkg.zip"
+    pkg = dist / f"{job.book_id}-{version}.hsbpkg.zip"
     job.update_state(pkg_rev=n, package=str(pkg.relative_to(ROOT)).replace("\\", "/"))
     log(f"  패키지: {pkg.name}")
     if do_import:

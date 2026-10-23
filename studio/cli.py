@@ -4,7 +4,8 @@
   make --job ID                              s0 원문 → s1 대본 → s2 판서 → s3 목소리 → s4 화면 → s5 영상·썸네일
   batch --years 2018-2025                    여러 해를 차례로 make (끝난 단계는 건너뜀 · 한도 소진 시 기다렸다 이어서)
   s0 | s1 | s2 | s3 | s4 | s5 --job ID [--force] [--only 3,7]
-  post --job ID [--visibility unlisted] [--dry-run]   유튜브 업로드 (기본 일부공개)
+  post --job ID [--visibility unlisted] [--at "2026-10-24 19:00"] [--dry-run]   유튜브 업로드 (기본 일부공개, --at 이면 예약 공개)
+  plan --items "2018|가,2020|가" --pattern daily --start 2026-10-24 --time 19:00 [--apply]   여러 회차 예약 공개(+이북 연동)
   link --job ID [--youtube VIDEOID]          이북 연동: video_map + 패키지 + 로컬 서버 적재
   login                                      유튜브 로그인용 Chrome 열기 (처음 한 번)
   tts-setup · doctor · ui
@@ -108,7 +109,21 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.add_argument("--subject", default="컴퓨터일반")
     p.add_argument("--force", action="store_true")
     p.add_argument("--visibility", default="unlisted")
+    p.add_argument("--account", help="올릴 유튜브 계정(profiles/accounts.json, 기본: 현재 계정)")
+    p.add_argument("--at", help="post 를 예약 공개로 (YYYY-MM-DD HH:MM)")
+    p = sub.add_parser("plan", help="고른 회차들을 시각 칸에 차례로 예약 공개로 올리고 이북 연동")
+    p.add_argument("--items", required=True)
+    p.add_argument("--subject", default="컴퓨터일반")
+    p.add_argument("--pattern", default="daily")
+    p.add_argument("--start", help="YYYY-MM-DD (기본 오늘)")
+    p.add_argument("--time", default="19:00")
+    p.add_argument("--account")
+    p.add_argument("--apply", action="store_true", help="없으면 시각만 보여 줌")
+    p.add_argument("--visibility", default="unlisted", choices=["unlisted", "public", "private"],
+                   help="--pattern now(예약 없이 바로)일 때 공개 범위")
     p = sub.add_parser("post")
+    p.add_argument("--at", help="예약 공개 시각 YYYY-MM-DD HH:MM")
+    p.add_argument("--account")
     p.add_argument("--job", required=True)
     p.add_argument("--visibility", default="unlisted", choices=["unlisted", "public", "private"])
     p.add_argument("--dry-run", action="store_true")
@@ -120,7 +135,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     p = sub.add_parser("export-aside", help="완성 영상을 롱폼 공방 작업 폴더로 내보내기(공방에서 업로드)")
     p.add_argument("--job", required=True)
     p.add_argument("--to", help="롱폼 공방 폴더 (기본: 환경변수 HSB_ASIDE_DIR 또는 D:\00work\261011-롱폼 세계사)")
-    for name in ("login", "tts-setup", "doctor", "ui"):
+    p = sub.add_parser("login")
+    p.add_argument("--account")
+    for name in ("tts-setup", "doctor", "ui"):
         sub.add_parser(name)
     a = ap.parse_args(argv)
 
@@ -157,6 +174,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             lock = ROOT / "logs" / "queue.json"   # 대시보드가 「실행 중」으로 알아보게(대시보드 밖에서 시작해도)
             lock.write_text(_json.dumps({"pid": _os.getpid(), "desc": f"{a.items} · {' → '.join(stages)}",
                                          "started": _time.strftime("%H:%M")}, ensure_ascii=False), encoding="utf-8")
+            from .schedule import parse_when
             failed = []
             for item in [x for x in a.items.split(",") if x]:
                 year, _, booklet = item.partition("|")
@@ -166,7 +184,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                         if st in STAGES:
                             run_stage(j, st, a.force)
                         elif st == "post":
-                            post(j, a.visibility, force=a.force)
+                            post(j, a.visibility, force=a.force, account=a.account, when=parse_when(a.at) if a.at else None)
                         elif st == "link":
                             from . import link
                             link.run(j)
@@ -183,7 +201,10 @@ def main(argv: Optional[List[str]] = None) -> int:
             lock.unlink(missing_ok=True)
             return 1 if failed else 0
         elif a.cmd == "post":
-            post(Job(a.job), a.visibility, a.dry_run, a.force)
+            from .schedule import parse_when
+            post(Job(a.job), a.visibility, a.dry_run, a.force, a.account, parse_when(a.at) if a.at else None)
+        elif a.cmd == "plan":
+            return plan(a)
         elif a.cmd == "link":
             from . import link
             j = Job(a.job)
@@ -194,7 +215,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             aside_export.export(Job(a.job), a.to)
         elif a.cmd == "login":
             from . import youtube
-            youtube.open_login()
+            youtube.open_login(a.account)
         elif a.cmd == "tts-setup":
             from .tts import engine
             engine.download(log)
@@ -217,8 +238,49 @@ def main(argv: Optional[List[str]] = None) -> int:
         return 1
 
 
-def post(job, visibility: str = "unlisted", dry_run: bool = False, force: bool = False) -> None:
-    from . import youtube
+def plan(a) -> int:
+    """고른 회차를 패턴의 빈 칸에 차례로 배치 → --apply 면 한 편씩 예약 공개로 올리고 이북 연동"""
+    import json as _json, os as _os, time as _time
+    from . import accounts, link, schedule
+    from .job import create
+    to_file(ROOT / "logs" / "studio.log")
+    items = [x for x in a.items.split(",") if x]
+    acc = accounts.get(a.account)
+    when = schedule.slots(len(items), pattern=a.pattern, start=a.start, at=a.time, account=acc["name"])
+    pairs = list(zip(items, when))
+    log(f"예약 계획 · 채널 {acc['label']} · {schedule.PATTERNS.get(a.pattern, {}).get('label', a.pattern)}")
+    for it, w in pairs:
+        log(f"  {f'{w:%Y-%m-%d (%a) %H:%M}' if w else '지금 · ' + a.visibility}  {it.replace('|', ' ')}책형")
+    if not a.apply:
+        return 0
+    lock = ROOT / "logs" / "queue.json"
+    lock.write_text(_json.dumps({"pid": _os.getpid(), "desc": f"일괄 올리기 {len(pairs)}편", "started": _time.strftime("%H:%M")},
+                                ensure_ascii=False), encoding="utf-8")
+    failed = []
+    try:
+        for it, w in pairs:
+            year, _, booklet = it.partition("|")
+            try:
+                j = create(int(year), a.subject, booklet=booklet or None)
+                post(j, a.visibility, account=acc["name"], when=w)
+                link.run(j)
+                to_file(ROOT / "logs" / "studio.log")
+                log(f"✓ {j.id} — {f'{w:%m-%d %H:%M} 예약' if w else a.visibility} · 이북 연동")
+            except Exception as e:
+                to_file(ROOT / "logs" / "studio.log")
+                failed.append(it)
+                log(f"✗ {it} 실패: {e}")
+                if "직접 마무리" in str(e):          # 업로드 창에서 멈춤 — 사람이 보기 전 다음 편을 넣지 않는다
+                    break
+    finally:
+        lock.unlink(missing_ok=True)
+    log("일괄 올리기 끝" + (f" — 실패: {failed}" if failed else ""))
+    return 1 if failed else 0
+
+
+def post(job, visibility: str = "unlisted", dry_run: bool = False, force: bool = False, account: Optional[str] = None,
+         when=None) -> None:
+    from . import accounts, youtube
     from .job import read_json
     from .render import chapter_lines
     to_file(job.dir / "log.txt")
@@ -228,12 +290,17 @@ def post(job, visibility: str = "unlisted", dry_run: bool = False, force: bool =
         return
     if not job.video.exists():
         raise RuntimeError("영상이 없습니다 — make 를 먼저")
-    log(f"── {job.id} · s6 유튜브 업로드 ({visibility})")
+    acc = accounts.get(account)
+    log(f"── {job.id} · s6 유튜브 업로드 ({f'예약 {when:%m-%d %H:%M}' if when else visibility}) · 계정 {acc['label']}")
     chapters = chapter_lines(read_json(job.audio / "timing.json"))
     playlist = job.setting("playlist") or f"{job.meta['exam']} {job.meta['subject']} 기출 해설"
     log(f"  재생목록: {playlist}")
     rec = youtube.upload(job.script(), job.video, chapters=chapters, thumb=job.thumb, visibility=visibility,
-                         dry_run=dry_run, playlist=playlist)
+                         dry_run=dry_run, playlist=playlist, account=acc["name"], when=when)
     if not dry_run:
+        ch = youtube.channel_of(rec["videoId"]) if rec.get("videoId") else None
+        if ch:
+            rec["channel"] = ch
+            log(f"  올라간 채널: {ch}  ← 맞는 채널인지 확인하세요")
         job.update_state(posted=rec)
         job.mark("s6", url=rec.get("url"))

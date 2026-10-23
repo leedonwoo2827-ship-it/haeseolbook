@@ -80,8 +80,9 @@ a{color:#1f5fbf}
   </section>
   <section id="tab-view" class="panel" hidden><div id="view"><p class="muted">② 만들기 표에서 회차 이름을 누르세요.</p></div></section>
   <section id="tab-post" class="panel" hidden>
-    <div class="bar"><span class="lab">유튜브</span><button class="b" id="login">로그인 창 열기 (처음 한 번)</button>
-      <span class="muted">열린 크롬에서 구글 로그인 → 유튜브 스튜디오 오른쪽 위 프로필 → 「계정 전환」에서 올릴 채널(예: 유비온북TV) 선택</span></div>
+    <div class="bar"><span class="lab">유튜브</span><select id="acc" title="올릴 채널(이 폴더의 Chrome 프로필)"></select><button class="b" id="login">로그인 창 열기</button>
+      <button class="b navy" id="openpanel" title="오른쪽에 업로드 패널, 왼쪽에 그 채널의 YouTube Studio Chrome">🚀 업로드 패널 열기</button>
+      <span class="muted">채널마다 Chrome 프로필이 따로입니다. 처음엔 패널의 「+ 계정」으로 추가하고 그 창에서 한 번 로그인하세요.</span></div>
     <div class="bar"><span class="lab">고른 회차에</span><span class="sel" id="selinfo2"></span>
       <select id="vis"><option value="unlisted">일부공개</option><option value="public">공개</option><option value="private">비공개</option></select>
       <button class="b red" data-st="post">유튜브 업로드</button><button class="b" data-st="link">이북 연동</button><button class="b navy" data-st="post,link">▶ 업로드 → 연동</button>
@@ -103,6 +104,7 @@ async function load(){
   O=await api('/api/overview?subject='+encodeURIComponent(subject));
   $('#subject').innerHTML=O.subjects.map(s=>`<option ${s===subject?'selected':''}>${esc(s)}</option>`).join('');
   const t=O.tools;$('#tools').innerHTML=[['claude','Claude'],['supertonic','SuperTonic3'],['ffmpeg','ffmpeg'],['php','PHP'],['chrome_profile','유튜브 로그인 프로필']].map(([k,n])=>`<span class="${t[k]?'':'no'}">${n}</span>`).join('');
+  const A=await api('/api/accounts');if(document.activeElement!==$('#acc'))$('#acc').innerHTML=A.accounts.map(a=>`<option value="${esc(a.name)}" ${a.name===A.current?'selected':''}>채널: ${esc(a.label)}</option>`).join('');
   const T=O.totals;
   $('#tiles').innerHTML=[['회차',T.rounds],['대본',T.script],['판서',T.marks],['음성',T.voice],['영상',T.video,`총 ${T.minutes}분`],['업로드',T.posted,`이북 연동 ${T.linked}`]].map(([a,b,c])=>`<div class="tile"><small>${a}</small><b>${b}</b>${c?`<em>${c}</em>`:''}</div>`).join('');
   $('#runinfo').textContent=O.running?`▶ 실행 중: ${O.running}`:'';
@@ -117,17 +119,18 @@ async function load(){
     <td>${r.minutes?esc(r.minutes)+'분':'<span class="c no">—</span>'}</td>
     <td>${r.frames?chip(true,`${r.frames}컷`):chip(false,'—')}</td>
     <td>${r.video?chip(true,`완성 ${r.mb||''}MB`):chip(false,'—')}</td>
-    <td>${r.posted?`<a href="${esc(r.posted.url)}" target="_blank">${{unlisted:'일부공개',public:'공개',private:'비공개'}[r.posted.visibility]||'올림'}</a>`:'<span class="c no">—</span>'}</td>
+    <td>${r.posted?`<a href="${esc(r.posted.url)}" target="_blank">${(r.posted.visibility==='scheduled'?'예약 '+(r.posted.scheduled_for||'').slice(5):{unlisted:'일부공개',public:'공개',private:'비공개'}[r.posted.visibility]||'올림')}</a>`:'<span class="c no">—</span>'}</td>
     <td>${r.linked?chip(true,'연동'):r.preview?chip(true,'미리보기','warn'):chip(false,'—')}</td></tr>`).join('');
   $('#srcrows').innerHTML=O.rows.map(r=>`<tr><td>${label(r)}</td><td class="muted">${esc(r.examDate||'')}</td><td>${r.exists?`<a href="/api/jobs/${esc(r.id)}/file/paper" target="_blank">문제 PDF</a>`:'<span class="muted">작업을 만들면 열람</span>'}</td><td>${r.exists?chip(true,r.id):'<span class="muted">0 원문을 돌리면 생깁니다</span>'}</td></tr>`).join('');
   $('#postrows').innerHTML=O.rows.filter(r=>r.video).map(r=>`<tr><td><label><input type="checkbox" data-k="${esc(r.key)}" ${sel.has(r.key)?'checked':''}> ${label(r)}</label></td><td>${chip(true,`${r.minutes}분`)}</td>
-    <td>${r.posted?`<a href="${esc(r.posted.url)}" target="_blank">${esc(r.posted.url)}</a> `:''}<span class="row" style="display:inline-flex;gap:4px"><input class="purl" data-id="${esc(r.id)}" placeholder="직접 올렸으면 유튜브 주소 붙여넣기" style="width:250px"><button class="b" data-purl="${esc(r.id)}">저장</button></span></td><td>${r.linked?chip(true,'연동'):r.preview?chip(true,'미리보기','warn'):chip(false,'—')}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">완성된 영상이 아직 없습니다.</td></tr>';
+    <td>${r.posted?`<a href="${esc(r.posted.url)}" target="_blank">${esc(r.posted.url)}</a> <span class="muted">${esc(r.posted.channel||r.posted.account||'')}</span> `:''}<span class="row" style="display:inline-flex;gap:4px"><input class="purl" data-id="${esc(r.id)}" placeholder="직접 올렸으면 유튜브 주소 붙여넣기" style="width:250px"><button class="b" data-purl="${esc(r.id)}">저장</button></span></td><td>${r.linked?chip(true,'연동'):r.preview?chip(true,'미리보기','warn'):chip(false,'—')}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">완성된 영상이 아직 없습니다.</td></tr>';
   const n=sel.size; const info=n?`(${n}개: ${[...sel].map(k=>k.replace('|',' ')).join(', ')})`:'(아직 안 골랐어요)';
   $('#selinfo').textContent=info;$('#selinfo2').textContent=info;
   document.querySelectorAll('button[data-st]').forEach(b=>b.disabled=!!O.running||!n);
 }
 async function logTick(){const r=await fetch('/api/log');const t=await r.text();const el=$('#log');const at=el.scrollTop+el.clientHeight>=el.scrollHeight-20;if(el.textContent!==t){el.textContent=t;if(at)el.scrollTop=el.scrollHeight}}
 document.addEventListener('change',e=>{
+  if(e.target.id==='acc'){api('/api/accounts/use',{method:'POST',body:JSON.stringify({name:e.target.value})});return}
   if(e.target.id==='subject'){subject=e.target.value;try{localStorage.setItem('hsb.subject',subject)}catch{};sel.clear();load()}
   if(e.target.id==='all'){O.rows.forEach(r=>e.target.checked?sel.add(r.key):sel.delete(r.key));load()}
   if(e.target.dataset.k){e.target.checked?sel.add(e.target.dataset.k):sel.delete(e.target.dataset.k);load()}
@@ -136,9 +139,10 @@ document.addEventListener('click',async e=>{
   const nb=e.target.closest('nav button');
   if(nb){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b===nb));['src','make','view','post'].forEach(t=>$('#tab-'+t).hidden=t!==nb.dataset.tab);return}
   const sb=e.target.closest('button[data-st]');
-  if(sb){try{await api('/api/run',{method:'POST',body:JSON.stringify({items:[...sel].sort(),stages:sb.dataset.st.split(','),subject,force:$('#force').checked,visibility:$('#vis').value})});load()}catch(x){alert(x.message)}return}
+  if(sb){try{await api('/api/run',{method:'POST',body:JSON.stringify({items:[...sel].sort(),stages:sb.dataset.st.split(','),subject,force:$('#force').checked,visibility:$('#vis').value,account:$('#acc').value})});load()}catch(x){alert(x.message)}return}
   if(e.target.id==='stop'){if(confirm('지금 하던 단계를 멈출까요? (끝난 문항·문장은 저장돼 있어 다시 실행하면 이어서 합니다)')){await api('/api/stop',{method:'POST'});load()}return}
-  if(e.target.id==='login'){await api('/api/login',{method:'POST'});return}
+  if(e.target.id==='login'){await api('/api/login',{method:'POST',body:JSON.stringify({account:$('#acc').value})});return}
+  if(e.target.id==='openpanel'){await api('/api/panel/open',{method:'POST'});return}
   const pu=e.target.closest('button[data-purl]');
   if(pu){const inp=document.querySelector(`input.purl[data-id="${pu.dataset.purl}"]`);try{const r=await api(`/api/jobs/${pu.dataset.purl}/posted`,{method:'POST',body:JSON.stringify({url:inp.value,visibility:$('#vis').value})});alert('저장했습니다: '+r.url+' — 이제 그 회차를 체크하고 「이북 연동」을 누르세요.');load()}catch(x){alert(x.message)}return}
   const v=e.target.closest('a[data-view]');

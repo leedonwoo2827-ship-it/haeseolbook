@@ -4,6 +4,7 @@
   ② 만들기 회차 표(대본·판서·음성·화면·영상·업로드·연동) + 고른 회차에 단계 실행(한 번에 하나, 차례로)
   ③ 결과 보기 회차 하나: 영상·썸네일·챕터·문항별 대본 편집·판서 화면
   ④ 올리기 유튜브 로그인·업로드(일부공개)·이북 연동
+  /panel   올리기 사이드 패널 — 오른쪽 좁은 창(계정·회차·올리기·연동·로그), 왼쪽은 그 계정의 YouTube Studio Chrome
 실행은 `python -m studio queue …` 하위 프로세스 하나(창을 닫아도 회차 폴더의 체크포인트가 남는다).
 """
 from __future__ import annotations
@@ -90,7 +91,8 @@ def tools() -> Dict[str, Any]:
     from .. import claude
     from ..link import php_exe
     from ..tts import engine
-    prof = ROOT / "profiles" / "dekman"
+    from .. import accounts
+    prof = ROOT / "profiles" / accounts.current()
     return {
         "claude": claude.available(), "supertonic": not engine.missing(), "ffmpeg": bool(shutil.which("ffmpeg")),
         "php": bool(php_exe()), "chrome_profile": prof.exists() and any(prof.iterdir()),
@@ -137,11 +139,17 @@ def create_app():
             LOG.parent.mkdir(parents=True, exist_ok=True)
             args = [sys.executable, "-m", "studio", "queue", "--items", ",".join(items), "--stages", ",".join(stages),
                     "--subject", body.get("subject", "컴퓨터일반"), "--visibility", body.get("visibility", "unlisted")]
+            if body.get("account"):
+                args += ["--account", str(body["account"])]
+            if body.get("at"):
+                args += ["--at", str(body["at"]).replace("T", " ")]
             if body.get("force"):
                 args.append("--force")
             _proc = subprocess.Popen(args, cwd=ROOT, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             _desc = f"{', '.join(items)} · {' → '.join(stages)}"
+        if "post" in stages:                 # 롱폼 공방처럼 — 왼쪽 YouTube Chrome, 오른쪽 올리기 패널
+            threading.Thread(target=_panel, daemon=True).start()
         return {"ok": True, "running": _desc}
 
     @app.post("/api/stop")
@@ -156,10 +164,84 @@ def create_app():
         return {"ok": True}
 
     @app.post("/api/login")
-    def login():
-        subprocess.Popen([sys.executable, "-m", "studio", "login"], cwd=ROOT,
-                         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    def login(body: Dict[str, Any] = Body(default={})):
+        args = [sys.executable, "-m", "studio", "login"]
+        if body.get("account"):
+            args += ["--account", str(body["account"])]
+        subprocess.Popen(args, cwd=ROOT, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        threading.Thread(target=_panel, daemon=True).start()
         return {"ok": True}
+
+    # ── 계정(채널별 Chrome 프로필) · 올리기 패널 ──
+    @app.get("/api/accounts")
+    def accounts_list():
+        from .. import accounts
+        return {"accounts": accounts.all_(), "current": accounts.current()}
+
+    @app.post("/api/accounts/use")
+    def accounts_use(body: Dict[str, Any] = Body(...)):
+        from .. import accounts
+        try:
+            accounts.set_current(str(body.get("name", "")))
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        return {"ok": True}
+
+    @app.post("/api/accounts/add")
+    def accounts_add(body: Dict[str, Any] = Body(...)):
+        from .. import accounts
+        try:
+            acc = accounts.add(str(body.get("name", "")).strip(), str(body.get("label", "")))
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        accounts.set_current(acc["name"])
+        return acc
+
+    @app.put("/api/accounts/{name}")
+    def accounts_label(name: str, body: Dict[str, Any] = Body(...)):
+        from .. import accounts
+        accounts.set_label(name, str(body.get("label", "")))
+        return {"ok": True}
+
+    # ── 예약: 고른 회차를 시각 칸에 차례로 → Studio 「예약 공개」 + 이북 연동 ──
+    @app.get("/api/plan")
+    def plan_preview(items: str = "", pattern: str = "daily", start: str = "", time: str = "19:00", account: str = ""):
+        from .. import schedule
+        keys = [x for x in items.split(",") if x]
+        when = schedule.slots(len(keys), pattern=pattern, start=start or None, at=time, account=account or None) if keys else []
+        return {"patterns": {k: v["label"] for k, v in schedule.PATTERNS.items()}, "default": schedule.DEFAULT,
+                "rows": [{"key": k, "when": w.strftime(schedule.FMT) if w else "", "dow": "월화수목금토일"[w.weekday()] if w else ""}
+                         for k, w in zip(keys, when)],
+                "taken": sorted(schedule.taken())}
+
+    @app.post("/api/plan")
+    def plan_apply(body: Dict[str, Any] = Body(...)):
+        global _proc, _desc
+        items: List[str] = body.get("items") or []
+        if not items:
+            raise HTTPException(400, "예약할 회차를 고르세요")
+        with _lock:
+            if running():
+                raise HTTPException(409, f"이미 실행 중입니다: {_desc}")
+            args = [sys.executable, "-m", "studio", "plan", "--items", ",".join(items), "--apply",
+                    "--subject", body.get("subject", "컴퓨터일반"), "--pattern", body.get("pattern", "daily"),
+                    "--time", body.get("time", "19:00"), "--visibility", body.get("visibility", "unlisted")]
+            for k in ("start", "account"):
+                if body.get(k):
+                    args += [f"--{k}", str(body[k])]
+            _proc = subprocess.Popen(args, cwd=ROOT, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            _desc = f"일괄 올리기 {len(items)}편"
+        threading.Thread(target=_panel, daemon=True).start()
+        return {"ok": True, "running": _desc}
+
+    @app.get("/panel", response_class=HTMLResponse)
+    def panel_page():
+        return (Path(__file__).parent / "panel.html").read_text(encoding="utf-8")
+
+    @app.post("/api/panel/open")
+    def panel_open():
+        return {"ok": _panel()}
 
     @app.post("/api/jobs/{job_id}/posted")
     def set_posted(job_id: str, body: Dict[str, Any] = Body(...)):
@@ -175,6 +257,17 @@ def create_app():
                "via": "manual", "at": datetime.now().isoformat(timespec="seconds")}
         j.update_state(posted=rec)
         return rec
+
+    @app.delete("/api/jobs/{job_id}/posted")
+    def clear_posted(job_id: str):
+        """잘못 올린 업로드 기록만 지운다(유튜브 영상은 그대로) — 이북은 다음 연동 때 미리보기로 돌아간다"""
+        j = job_or_404(job_id)
+        st = j.state()
+        st.pop("posted", None)
+        for k in ("s6", "s7"):
+            (st.get("stages") or {}).pop(k, None)
+        write_json(j.dir / "state.json", st)
+        return {"ok": True}
 
     @app.get("/api/log", response_class=PlainTextResponse)
     def log_tail():
@@ -202,7 +295,14 @@ def create_app():
                                 "lines": {k: q.get(k, []) for k in ("read", "solve", "answer")}, "marks": len(mk)})
         timing = read_json(j.audio / "timing.json") or {}
         st = j.state()
+        desc = ""
+        if timing and script:
+            from ..render import chapter_lines
+            from ..youtube import description
+            desc = description(script, chapter_lines(timing))
         return {"id": j.id, "title": j.meta["title"], "posted": st.get("posted"), "hasVideo": j.video.exists(),
+                "description": desc, "tags": (script.get("youtube") or {}).get("tags") or [],
+                "linked": ((st.get("stages") or {}).get("s7") or {}).get("youtubeId"), "preview": st.get("preview_published"),
                 "hasThumb": j.thumb.exists(), "quizzes": quizzes, "duration": timing.get("duration"),
                 "chapters": [{"title": c["title"], "start": c["start"]} for c in timing.get("chapters", [])],
                 "youtube": (script.get("youtube") or {})}
@@ -254,6 +354,16 @@ def create_app():
         return FileResponse(p)
 
     return app
+
+
+def _panel() -> bool:
+    """올리기 패널을 오른쪽에 붙인다 — 보기 좋으라고 띄우는 것이라 실패해도 업로드는 계속"""
+    from .. import youtube
+    try:
+        return youtube.open_panel(PORT)
+    except BaseException as e:      # noqa: BLE001
+        print(f"패널 열기 실패: {e}", flush=True)
+        return False
 
 
 def serve() -> None:

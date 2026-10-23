@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>해설북 · 올리기</title>
+<style>
+:root{--bg:#F6F1E8;--card:#FFFDF8;--ink:#1E293B;--body:#334155;--mute:#94A3B8;--line:#E7DFD0;--a:#1F4E79;--b:#9DC3E6;--ok:#2E7D5B;--warn:#C77700;--bad:#E4572E}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--body);font:14px/1.5 "Pretendard","Noto Sans KR","Malgun Gothic",sans-serif;letter-spacing:-.01em}
+button,select,input,textarea{font:inherit;color:inherit}
+header{position:sticky;top:0;z-index:5;background:var(--bg);padding:12px 14px 8px;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.brand b{font-size:16px;color:var(--a)}
+.row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+select,input,textarea{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+select{flex:1;min-width:0}
+textarea{width:100%;resize:vertical;line-height:1.5}
+button{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:6px 10px;cursor:pointer;white-space:nowrap}
+button:hover{border-color:var(--b)}
+button.pri{background:var(--a);border-color:var(--a);color:#fff;font-weight:700}
+button.hot{background:var(--bad);border-color:var(--bad);color:#fff;font-weight:700}
+button:disabled{opacity:.45;cursor:default}
+main{padding:10px 14px calc(var(--logh,170px) + 20px)}
+.item{display:grid;grid-template-columns:96px 1fr;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px;margin-bottom:6px;cursor:pointer}
+.item:hover,.item.sel{border-color:var(--a)}
+.thumb{width:96px;height:54px;border-radius:6px;background:#EEE7DA center/cover no-repeat}
+.item .t{font-weight:700;color:var(--ink);font-size:13px;line-height:1.35}
+.item .h{color:var(--mute);font-size:12px}
+.pill{font-size:11px;padding:1px 7px;border-radius:99px;background:#efe9de;color:#64748b;margin-right:4px}
+.pill.ok{background:#dcfce7;color:var(--ok)}.pill.warn{background:#fef3c7;color:var(--warn)}.pill.bad{background:#fee2e2;color:var(--bad)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:10px 0}
+label{display:block;font-size:12px;color:var(--mute);margin:8px 0 3px}
+.lab{display:flex;justify-content:space-between;align-items:center;margin:10px 0 3px;font-size:12px;color:var(--mute)}
+#log{position:fixed;left:0;right:0;bottom:0;height:var(--logh,170px);background:#1d2433;color:#e2e8f0;font:12px/1.5 Consolas,"Malgun Gothic",monospace;padding:8px 12px;overflow:auto;white-space:pre-wrap;margin:0}
+#logbar{position:fixed;left:0;right:0;bottom:var(--logh,170px);height:8px;cursor:ns-resize;background:#334155;z-index:5}
+.muted{color:var(--mute);font-size:12px}
+[hidden]{display:none!important}
+#tabs{display:flex;margin-top:8px;border-bottom:1px solid var(--line)}
+#tabs button{flex:1;border:0;background:none;border-radius:0;padding:8px 0;color:var(--mute);font-weight:700;border-bottom:3px solid transparent}
+#tabs button.on{color:var(--a);border-bottom-color:var(--a)}
+.help p{margin:6px 0;font-size:13px}.help b{color:var(--ink)}
+.warnbox{background:#fef3c7;border:1px solid #f0c060;border-radius:8px;padding:6px 8px;font-size:12.5px;margin-top:6px}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><b>해설북 · 올리기</b><span><button onclick="window.open('/', '_blank')" title="넓은 대시보드">대시보드</button> <button onclick="stopRun()">■ 멈춤</button></span></div>
+  <div class="row"><select id="acc" title="올릴 채널(이 폴더의 Chrome 프로필)"></select><button onclick="login()" title="왼쪽 Chrome 에서 로그인·채널 확인">로그인 창</button><button onclick="addAcc()" title="다른 채널용 Chrome 프로필 추가">+ 계정</button></div>
+  <div class="row" style="margin-top:6px"><select id="subject"></select></div>
+  <div class="muted" id="busy" style="margin-top:4px"></div>
+  <nav id="tabs"><button data-m="one">올리기</button><button data-m="plan">일괄 · 예약</button><button data-m="help">도움말</button></nav>
+</header>
+<main>
+  <div id="one"><div id="detail"></div><div id="list"></div></div>
+  <div id="plan" hidden></div>
+  <div id="help" class="help" hidden>
+    <div class="card"><b>올리기</b>
+      <p>1. 위에서 <b>채널</b>을 고르고 「로그인 창」으로 왼쪽 Studio 오른쪽 위 프로필이 그 채널인지 확인합니다. 다른 채널은 「+ 계정」으로 Chrome 프로필을 따로 만들어 한 번 로그인합니다.</p>
+      <p>2. 회차를 누르고 「▶ 올리기 → 이북 연동」. 예약 칸에 시각을 넣으면 그 시각에 공개되는 <b>예약 공개</b>로 올라갑니다(업로드는 지금, PC를 꺼도 됨).</p>
+      <p>3. 올린 뒤 로그에 <b>올라간 채널</b> 이름이 나옵니다. 잘못 올렸으면 「업로드 기록 지우기」 후 Studio 에서 영상을 지우세요.</p></div>
+    <div class="card"><b>예약</b>
+      <p>여러 회차를 골라 패턴(매일·간격·요일)과 시작일·시각을 정하면 빈 칸에 차례로 배치합니다. 「미리보기」로 시각을 확인한 뒤 「예약 걸기」를 누르면 한 편씩 Studio 「예약 공개」로 올리고 이북에 연동합니다. 이미 예약된 시각은 비켜 갑니다.</p>
+      <p>예약 공개 영상은 공개 시각 전까지 이북에서 재생되지 않습니다(비공개 상태).</p></div>
+    <div class="card"><b>멈췄을 때</b>
+      <p>영상 파일을 넣은 뒤 멈추면 같은 버튼을 다시 누르지 말고(초안이 하나 더 생김) 왼쪽 Studio 창에서 나머지를 직접 누르세요. 그다음 「직접 올렸으면 유튜브 주소」에 주소를 넣으면 이북에 연동됩니다.</p></div>
+  </div>
+</main>
+<div id="logbar"></div>
+<pre id="log"></pre>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => '&#' + c.charCodeAt(0) + ';');
+async function api(u, o = {}) { const r = await fetch(u, {headers: {'Content-Type': 'application/json'}, ...o}); if (!r.ok) { let m = await r.text(); try { m = JSON.parse(m).detail } catch (e) {} alert(m); throw new Error(m) } return r.json() }
+const VIS = {unlisted: '일부 공개', public: '공개', private: '비공개', scheduled: '예약'};
+const visText = p => p.visibility === 'scheduled' && p.scheduled_for ? '예약 ' + p.scheduled_for.slice(5) : (VIS[p.visibility] || '올림');
+let MODE = 'one', PSEL = new Set();
+try { MODE = localStorage.getItem('panel.mode') || 'one' } catch (e) {}
+function setMode(m) {
+  MODE = m; try { localStorage.setItem('panel.mode', m) } catch (e) {}
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.m === m));
+  ['one', 'plan', 'help'].forEach(k => $('#' + k).hidden = k !== m);
+  if (m === 'plan' && O) planView();
+}
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => setMode(b.dataset.m));
+let O = null, ACCS = null, SEL = null, subject = '컴퓨터일반', busy = null;
+try { subject = localStorage.getItem('hsb.subject') || subject; SEL = localStorage.getItem('panel.sel') } catch (e) {}
+
+const accLabel = n => (ACCS?.accounts.find(a => a.name === n) || {}).label || n || '';
+async function load() {
+  O = await api('/api/overview?subject=' + encodeURIComponent(subject));
+  ACCS = await api('/api/accounts');
+  $('#acc').innerHTML = ACCS.accounts.map(a => `<option value="${esc(a.name)}" ${a.name === ACCS.current ? 'selected' : ''}>채널: ${esc(a.label)}${a.label !== a.name ? ' (' + esc(a.name) + ')' : ''}</option>`).join('');
+  $('#subject').innerHTML = O.subjects.map(s => `<option ${s === subject ? 'selected' : ''}>${esc(s)}</option>`).join('');
+  busy = O.running; $('#busy').textContent = busy ? '● 작업 중: ' + busy : '';
+  list();
+  if (SEL) detail();
+  if (MODE === 'plan') planView();
+}
+$('#acc').onchange = async e => { await api('/api/accounts/use', {method: 'POST', body: JSON.stringify({name: e.target.value})}); load() };
+$('#subject').onchange = e => { subject = e.target.value; try { localStorage.setItem('hsb.subject', subject) } catch (x) {} SEL = null; $('#detail').innerHTML = ''; load() };
+
+function status(r) {
+  if (r.posted) return `<span class="pill ok">${esc(visText(r.posted))}</span>` + (r.linked ? '<span class="pill ok">이북 연동</span>' : '<span class="pill warn">연동 전</span>');
+  if (r.video) return '<span class="pill warn">올릴 준비</span>';
+  return '<span class="pill">영상 없음</span>';
+}
+function list() {
+  const rs = O.rows.filter(r => r.exists);
+  $('#list').innerHTML = `<div class="muted" style="margin:6px 0">영상 ${rs.filter(r => r.video).length}편 · 올림 ${rs.filter(r => r.posted).length}편</div>` + rs.map(r => `
+    <div class="item ${r.id === SEL ? 'sel' : ''}" onclick="pick('${esc(r.id)}')">
+      <div class="thumb" style="${r.video ? `background-image:url('/api/jobs/${encodeURIComponent(r.id)}/file/thumb')` : ''}"></div>
+      <div><div class="t">${r.year} ${esc(r.booklet)}책형</div><div class="h">${status(r)}${r.minutes ? r.minutes + '분' : ''}</div></div>
+    </div>`).join('');
+}
+function pick(id) { SEL = id; try { localStorage.setItem('panel.sel', id) } catch (e) {} list(); detail(true) }
+const row = () => O.rows.find(r => r.id === SEL);
+async function detail(scroll = false) {
+  const r = row(); if (!r) { $('#detail').innerHTML = ''; return }
+  const D = await api(`/api/jobs/${encodeURIComponent(SEL)}`), p = D.posted;
+  const cp = (id, t) => `<div class="lab"><span>${t}</span><button onclick="navigator.clipboard.writeText(document.getElementById('${id}').value);this.textContent='복사됨'">복사</button></div>`;
+  const wrongAcc = p && p.account && p.account !== ACCS.current;
+  $('#detail').innerHTML = `<div class="card">
+    <b>${r.year} ${esc(r.booklet)}책형</b> <span class="muted">${esc(D.id)}</span>
+    ${p ? `<p style="margin:6px 0"><span class="pill ok">${esc(visText(p))}</span><a href="${esc(p.url || '#')}" target="_blank">${esc(p.url || '(주소 없음)')}</a><br>
+      <span class="muted">채널: ${esc(p.channel || accLabel(p.account) || '?')} · ${esc((p.at || '').replace('T', ' '))}</span></p>` : ''}
+    ${!D.hasVideo ? '<p class="muted">아직 영상이 없어요 — 대시보드 ② 만들기에서 만들어 주세요.</p>' : ''}
+    <div class="row" style="margin-top:6px"><select id="vis"><option value="unlisted">일부 공개</option><option value="public">공개</option><option value="private">비공개</option></select></div>
+    <label>예약 공개 (비우면 지금 위 공개 범위로)</label><input id="at" type="datetime-local" style="width:100%">
+    <div class="warnbox">올릴 채널: <b>${esc(accLabel(ACCS.current))}</b> — 왼쪽 Studio 오른쪽 위 프로필이 이 채널인지 먼저 확인하세요.</div>
+    <div class="row" style="margin-top:8px">
+      <button class="pri" onclick="post()" ${!D.hasVideo || busy ? 'disabled' : ''}>▶ 올리기 → 이북 연동</button>
+      <button onclick="run(['link'])" ${busy ? 'disabled' : ''} title="올린 주소로 문항별 구간·판서 포인터를 이북에 붙입니다(업로드 전이면 교재만 미리 게시)">📖 이북 연동</button>
+    </div>
+    ${p ? `<p class="muted" style="margin:6px 0 0">${D.linked ? '이북 연동됨: ' + esc(D.linked) : '아직 이북에 안 붙었어요 — 「📖 이북 연동」'}${wrongAcc ? ' · 지금 고른 채널과 올린 채널이 달라요' : ''}</p>` : ''}
+    <label>직접 올렸으면 유튜브 주소</label><div class="row"><input id="purl" style="flex:1" placeholder="https://youtu.be/…"><button onclick="savePurl()">저장</button></div>
+    ${p ? `<div style="margin-top:6px"><button onclick="clearPosted()" title="잘못 올린 기록만 지웁니다(유튜브 영상은 그대로)">업로드 기록 지우기</button></div>` : ''}
+    ${D.youtube?.title ? `${cp('t', '제목')}<textarea id="t" rows="2" readonly>${esc(D.youtube.title)}</textarea>` : ''}
+    ${D.description ? `${cp('d', '설명 (챕터 포함)')}<textarea id="d" rows="9" readonly>${esc(D.description)}</textarea>` : ''}
+    ${D.tags?.length ? `${cp('g', '태그')}<textarea id="g" rows="2" readonly>${esc(D.tags.join(', '))}</textarea>` : ''}
+    ${D.hasThumb ? `<div class="lab"><span>썸네일</span></div><img src="/api/jobs/${encodeURIComponent(D.id)}/file/thumb" style="width:100%;border-radius:8px">` : ''}
+    <div style="margin-top:8px;text-align:right"><button onclick="SEL=null;$('#detail').innerHTML='';list()">닫기</button></div>
+  </div>`;
+  if (scroll) window.scrollTo({top: 0, behavior: 'smooth'});
+}
+async function run(stages, extra = {}) {
+  const r = row(); if (!r) return;
+  await api('/api/run', {method: 'POST', body: JSON.stringify({items: [r.key], stages, subject, account: ACCS.current, ...extra})});
+  load();
+}
+async function post() {
+  const r = row(), vis = $('#vis').value, at = $('#at').value;
+  if (r.posted && !confirm(`${r.year}은 이미 올렸어요 (${r.posted.url}).\n그래도 한 번 더 올릴까요?`)) return;
+  const how = at ? `${at.replace('T', ' ')} 에 「예약 공개」` : `지금 「${VIS[vis]}」`;
+  if (!confirm(`채널 「${accLabel(ACCS.current)}」에\n${r.year} ${r.booklet}책형을 ${how}로 올리고 이북에 연동할까요?`)) return;
+  await run(['post', 'link'], {visibility: vis, force: !!r.posted, at});
+}
+// ── 예약: 여러 회차를 시각 칸에 차례로 ──
+async function planView() {
+  const ready = O.rows.filter(r => r.exists && r.video && !r.posted);
+  if (!PSEL.size) ready.forEach(r => PSEL.add(r.key));
+  const pv = await api('/api/plan');
+  let st = {}; try { st = JSON.parse(localStorage.getItem('panel.plan') || '{}') } catch (e) {}
+  $('#plan').innerHTML = `<div class="card">
+    <b>한 번에 올리기</b><div class="muted">고른 회차를 차례로 한 편씩 올리고 이북에 연동해요. 「지금 바로」는 공개 범위 그대로, 나머지 패턴은 시각 칸에 Studio 「예약 공개」. 채널: <b>${esc(accLabel(ACCS.current))}</b></div>
+    <label>패턴</label><select id="pPat" style="width:100%" onchange="pMode()">${Object.entries(pv.patterns).map(([k, t]) => `<option value="${k}" ${k === (st.pattern || 'now') ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>
+    <div id="pVisBox"><label>공개 범위</label><select id="pVis" style="width:100%"><option value="unlisted" ${(st.vis || 'unlisted') === 'unlisted' ? 'selected' : ''}>일부 공개</option><option value="public" ${st.vis === 'public' ? 'selected' : ''}>공개</option><option value="private" ${st.vis === 'private' ? 'selected' : ''}>비공개</option></select></div>
+    <div class="row" style="margin-top:6px" id="pWhenBox">
+      <div style="flex:1"><label style="margin-top:0">시작일</label><input id="pStart" type="date" style="width:100%" value="${esc(st.start || '')}"></div>
+      <div style="flex:1"><label style="margin-top:0">시각</label><input id="pTime" type="time" style="width:100%" value="${esc(st.time || '19:00')}"></div>
+    </div>
+    <label>올릴 회차 (${ready.length}편 준비 · 아직 안 올린 것만)</label>
+    <div>${ready.map(r => `<label style="display:flex;gap:6px;align-items:center;color:var(--ink);margin:3px 0;font-size:13px"><input type="checkbox" ${PSEL.has(r.key) ? 'checked' : ''} data-pk="${esc(r.key)}"><b>${r.year} ${esc(r.booklet)}책형</b> <span class="muted">${r.minutes}분</span></label>`).join('') || '<p class="muted">올릴 회차가 없어요 — 영상이 있고 아직 안 올린 회차만 나와요.</p>'}</div>
+    <div class="row" style="margin-top:8px"><button onclick="pPreview()" ${!ready.length ? 'disabled' : ''}>미리보기</button>
+      <button class="pri" id="pGo" onclick="pApply()" ${!ready.length || busy ? 'disabled' : ''}>예약 걸기</button></div>
+    <div id="pOut" style="margin-top:8px"></div>
+    ${pv.taken.length ? `<p class="muted">이미 예약된 시각: ${pv.taken.map(esc).join(', ')}</p>` : ''}</div>`;
+  pMode();
+  document.querySelectorAll('input[data-pk]').forEach(c => c.onchange = () => c.checked ? PSEL.add(c.dataset.pk) : PSEL.delete(c.dataset.pk));
+}
+function pMode() {
+  const now = $('#pPat').value === 'now';
+  $('#pVisBox').hidden = !now; $('#pWhenBox').hidden = now;
+  $('#pGo').textContent = now ? '▶ 차례로 올리기' : '예약 걸기';
+  $('#pOut').innerHTML = '';
+}
+function pArgs() {
+  const a = {items: O.rows.filter(r => PSEL.has(r.key) && r.video && !r.posted).map(r => r.key), pattern: $('#pPat').value, start: $('#pStart').value, time: $('#pTime').value, visibility: $('#pVis').value, account: ACCS.current, subject};
+  try { localStorage.setItem('panel.plan', JSON.stringify({pattern: a.pattern, start: a.start, time: a.time, vis: a.visibility})) } catch (e) {}
+  return a;
+}
+async function pPreview() {
+  const a = pArgs(); if (!a.items.length) { alert('올릴 회차를 고르세요'); return null }
+  const pv = await api(`/api/plan?items=${encodeURIComponent(a.items.join(','))}&pattern=${a.pattern}&start=${a.start}&time=${a.time}&account=${encodeURIComponent(a.account)}`);
+  $('#pOut').innerHTML = pv.rows.map((r, i) => `<div style="display:flex;gap:8px;font-size:12.5px;border-bottom:1px solid var(--line);padding:3px 0"><b style="white-space:nowrap">${r.when ? esc(r.when.slice(5)) + ' (' + r.dow + ')' : (i + 1) + '. 지금 · ' + VIS[a.visibility]}</b><span>${esc(r.key.replace('|', ' '))}책형</span></div>`).join('');
+  return pv;
+}
+async function pApply() {
+  const a = pArgs(); const pv = await pPreview(); if (!pv) return;
+  const how = a.pattern === 'now' ? `지금 「${VIS[a.visibility]}」로 차례로` : `예약 공개로 (첫 편 ${pv.rows[0]?.when} · 마지막 ${pv.rows[pv.rows.length - 1]?.when})`;
+  if (!confirm(`채널 「${accLabel(a.account)}」에 ${a.items.length}편을\n${how} 올릴까요?\n(한 편씩 올리고 이북에 연동해요. 한 편에 5~10분)`)) return;
+  await api('/api/plan', {method: 'POST', body: JSON.stringify(a)});
+  load();
+}
+async function savePurl() {
+  const u = $('#purl').value.trim(); if (!u) return;
+  await api(`/api/jobs/${encodeURIComponent(SEL)}/posted`, {method: 'POST', body: JSON.stringify({url: u, visibility: $('#vis').value})});
+  if (confirm('저장했어요. 바로 이북에 연동할까요?')) await run(['link']); else load();
+}
+async function clearPosted() {
+  if (!confirm('이 회차의 업로드 기록을 지울까요? (유튜브의 영상은 지워지지 않아요 — 필요하면 Studio 에서 직접 삭제)')) return;
+  await api(`/api/jobs/${encodeURIComponent(SEL)}/posted`, {method: 'DELETE'});
+  load();
+}
+async function login() { await api('/api/login', {method: 'POST', body: JSON.stringify({account: ACCS.current})}) }
+async function addAcc() {
+  const name = prompt('새 계정 이름 (영소문자, 예: ubionbook)'); if (!name) return;
+  const label = prompt('채널 이름 (예: 유비온북TV)', name) || name;
+  await api('/api/accounts/add', {method: 'POST', body: JSON.stringify({name, label})});
+  await load();
+  if (confirm(`「${label}」 전용 Chrome 을 열어 로그인할까요? (처음 한 번)`)) login();
+}
+async function stopRun() { if (confirm('지금 하던 일을 멈출까요?')) { await api('/api/stop', {method: 'POST'}); load() } }
+async function poll() {
+  try {
+    const t = await (await fetch('/api/log')).text(), el = $('#log');
+    const at = el.scrollTop + el.clientHeight >= el.scrollHeight - 20;
+    if (el.textContent !== t) { el.textContent = t; if (at) el.scrollTop = el.scrollHeight }
+    const o = await api('/api/overview?subject=' + encodeURIComponent(subject));
+    if (o.running !== busy) load();
+  } catch (e) {}
+  setTimeout(poll, 2000);
+}
+(function () {
+  const bar = $('#logbar'), root = document.documentElement;
+  const set = h => { h = Math.max(28, Math.min(innerHeight - 120, h)); root.style.setProperty('--logh', h + 'px'); try { localStorage.setItem('panel.logh', h) } catch (e) {} };
+  try { set(+localStorage.getItem('panel.logh') || 170) } catch (e) {}
+  bar.onpointerdown = e => { bar.setPointerCapture(e.pointerId); bar.onpointermove = ev => set(innerHeight - ev.clientY - 4); bar.onpointerup = () => { bar.onpointermove = null } };
+})();
+setMode(MODE);
+load().then(() => { const el = $('#log'); el.scrollTop = el.scrollHeight; poll() });
+</script>
+</body>
+</html>

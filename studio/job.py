@@ -68,6 +68,11 @@ class Job:
     @property
     def answers_pdf(self) -> Path: return ROOT / self.meta["answers"]
 
+    @property
+    def book_id(self) -> str:
+        """이북 교재 id — 서버 규칙(영소문자·숫자·하이픈)에 맞게 책형 한글을 a·b·c·d 로"""
+        return self.id.translate(str.maketrans({"가": "a", "나": "b", "다": "c", "라": "d"}))
+
     def setting(self, key: str, default: Any = None) -> Any:
         return self.meta.get(key, default)
 

@@ -26,8 +26,6 @@ HOME = "https://studio.youtube.com/"
 UPLOAD = "https://www.youtube.com/upload"
 PROFILES = ROOT / "profiles"
 LOGS = ROOT / "logs" / "post"
-DEFAULT_ACCOUNT = "dekman"
-DEFAULT_PORT = 9381
 SESSION_COOKIES = ("SAPISID", "__Secure-3PAPISID", "LOGIN_INFO")
 
 SEL: Dict[str, Any] = {
@@ -45,6 +43,10 @@ SEL: Dict[str, Any] = {
     "video_url": "ytcp-video-info a.ytcp-video-info, .video-url-fadeable a",
     "progress": "ytcp-video-upload-progress .progress-label, ytcp-video-upload-progress",
     "close": "#close-button, ytcp-button#close-button",
+    "schedule_open": "#second-container-expand-button",
+    "date_trigger": "#datepicker-trigger",
+    "date_input": "ytcp-date-picker tp-yt-paper-input input, ytcp-date-picker input",
+    "time_input": "#time-of-day-container input, ytcp-datetime-picker #time-of-day-container tp-yt-paper-input input",
     "more": "#toggle-button",
     "tags": "#tags-container input#text-input, input[aria-label*='Tags'], input[aria-label*='태그']",
     "thumb": "#file-loader, ytcp-thumbnails-compact-editor-uploader input[type='file'], "
@@ -59,7 +61,7 @@ TEXT: Dict[str, Any] = {
     "unlisted": re.compile(r"^(일부 공개|Unlisted)$"),
     "private": re.compile(r"^(비공개|Private)$"),
     "next": re.compile(r"^(다음|Next)$"),
-    "done": re.compile(r"^(저장|게시|Save|Publish)$"),
+    "done": re.compile(r"^(저장|게시|예약|Save|Publish|Schedule)$"),
     "more": re.compile(r"^(자세히 보기|Show more|더보기)$"),
     "altered": re.compile(r"(변경되거나 합성된 콘텐츠|Altered content)"),
 }
@@ -98,26 +100,104 @@ def _port_open(port: int) -> bool:
         return s.connect_ex(("127.0.0.1", port)) == 0
 
 
-def ensure_chrome(account: str = DEFAULT_ACCOUNT, port: int = DEFAULT_PORT, url: str = HOME) -> bool:
-    """그 계정 프로필 Chrome 을 디버그 포트로 띄운다. 이미 떠 있으면 그대로. 새로 띄웠으면 True."""
-    if _port_open(port):
-        return False
-    profile = PROFILES / account
-    profile.mkdir(parents=True, exist_ok=True)
-    subprocess.Popen([chrome_path(), f"--user-data-dir={profile}", f"--remote-debugging-port={port}",
-                      "--no-first-run", "--no-default-browser-check", "--window-size=1400,950", url])
-    for _ in range(60):
+def _wait_port(port: int, tries: int = 60) -> bool:
+    for _ in range(tries):
         try:
             urllib.request.urlopen(f"http://127.0.0.1:{port}/json/version", timeout=1)
             return True
         except Exception:
             time.sleep(0.5)
-    raise PostError("Chrome 디버그 포트가 열리지 않습니다 — 같은 프로필 Chrome 이 떠 있으면 닫고 다시 하세요")
+    return False
+
+
+def _account(account: Optional[str]) -> Dict[str, Any]:
+    from . import accounts
+    return accounts.get(account)
+
+
+def ensure_chrome(account: Optional[str] = None, port: Optional[int] = None, url: str = HOME) -> bool:
+    """그 계정 프로필 Chrome 을 디버그 포트로 화면 왼쪽에 띄운다(오른쪽은 올리기 패널). 이미 떠 있으면 그대로. 새로 띄웠으면 True."""
+    acc = _account(account)
+    port = port or int(acc["port"])
+    if _port_open(port):
+        return False
+    profile = PROFILES / acc["name"]
+    profile.mkdir(parents=True, exist_ok=True)
+    subprocess.Popen([chrome_path(), f"--user-data-dir={profile}", f"--remote-debugging-port={port}",
+                      "--no-first-run", "--no-default-browser-check", "--window-size=1400,950", url])
+    if not _wait_port(port):
+        raise PostError("Chrome 디버그 포트가 열리지 않습니다 — 같은 프로필 Chrome 이 떠 있으면 닫고 다시 하세요")
+    try:
+        place(port, "left")
+    except Exception:       # 배치는 보기 좋으라고 하는 일
+        pass
+    return True
+
+
+# ── 올리기 패널: 왼쪽 YouTube Studio Chrome + 오른쪽 좁은 패널(Chrome 앱 창) ─────────
+PANEL_WIDTH = 460
+PANEL_PORT = 9380
+
+
+def place(port: int, side: str) -> None:
+    """창을 화면 왼쪽(YouTube) 또는 오른쪽(패널)에 붙인다.
+    실행 인자 좌표는 Windows 배율에 따라 어긋나므로, 창이 뜬 뒤 Chrome 이 아는 화면 영역(screen.avail*)으로
+    CDP Browser.setWindowBounds 를 건다."""
+    from playwright.sync_api import sync_playwright
+    with sync_playwright() as pw:
+        br = pw.chromium.connect_over_cdp(f"http://127.0.0.1:{port}")
+        ctx = br.contexts[0]
+        page = next((p for p in ctx.pages if not p.url.startswith("devtools")), None) or ctx.new_page()
+        ax, ay, aw, ah = page.evaluate("[screen.availLeft || 0, screen.availTop || 0, screen.availWidth, screen.availHeight]")
+        cdp = ctx.new_cdp_session(page)
+        wid = cdp.send("Browser.getWindowForTarget")["windowId"]
+        cdp.send("Browser.setWindowBounds", {"windowId": wid, "bounds": {"windowState": "normal"}})
+        b = ({"left": ax + aw - PANEL_WIDTH, "top": ay, "width": PANEL_WIDTH, "height": ah} if side == "right"
+             else {"left": ax, "top": ay, "width": max(700, aw - PANEL_WIDTH), "height": ah})
+        cdp.send("Browser.setWindowBounds", {"windowId": wid, "bounds": b})
+        cdp.detach()
+
+
+def _is_panel(port: int, ui_port: int) -> bool:
+    import json
+    try:
+        tabs = json.load(urllib.request.urlopen(f"http://127.0.0.1:{port}/json/list", timeout=1))
+        return any(str(t.get("url", "")).startswith(f"http://127.0.0.1:{ui_port}/") for t in tabs)
+    except Exception:
+        return False
+
+
+def open_panel(ui_port: int) -> bool:
+    """오른쪽 끝에 올리기 패널을 붙인다. 이미 떠 있으면 자리만 맞춘다."""
+    port = PANEL_PORT
+    if not (_port_open(port) and _is_panel(port, ui_port)):
+        if _port_open(port):            # 다른 도구가 쓰는 포트면 위로 비어 있는 포트
+            port = next(p for p in range(PANEL_PORT - 40, PANEL_PORT) if not _port_open(p))
+        subprocess.Popen([chrome_path(), f"--app=http://127.0.0.1:{ui_port}/panel",
+                          f"--user-data-dir={PROFILES / '_panel'}", f"--remote-debugging-port={port}",
+                          "--no-first-run", "--no-default-browser-check", f"--window-size={PANEL_WIDTH},900"],
+                         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        if not _wait_port(port):
+            return False
+        time.sleep(1.0)
+    place(port, "right")
+    return True
+
+
+def channel_of(vid: str) -> Optional[str]:
+    """올라간 영상의 채널 이름(oEmbed — 일부공개도 됨). 잘못된 채널로 올렸는지 바로 알아보려고."""
+    import json
+    try:
+        r = urllib.request.urlopen(f"https://www.youtube.com/oembed?url=https://youtu.be/{vid}&format=json", timeout=10)
+        return json.load(r).get("author_name")
+    except Exception:
+        return None
 
 
 class Session:
-    def __init__(self, account: str = DEFAULT_ACCOUNT, port: int = DEFAULT_PORT):
-        self.account, self.port = account, port
+    def __init__(self, account: Optional[str] = None, port: Optional[int] = None):
+        acc = _account(account)
+        self.account, self.port = acc["name"], port or int(acc["port"])
 
     def __enter__(self) -> "Session":
         from playwright.sync_api import sync_playwright
@@ -148,14 +228,14 @@ class Session:
             pass
 
 
-def open_login(account: str = DEFAULT_ACCOUNT) -> None:
+def open_login(account: Optional[str] = None) -> None:
     if not ensure_chrome(account, url=HOME):
         with Session(account) as s:
             s.page.goto(HOME)
-    log("열린 Chrome 창에서 Google 로그인 후, 올릴 채널이 선택돼 있는지 확인하세요. 창은 닫지 않아도 됩니다.")
+    log(f"[{_account(account)['label']}] 열린 Chrome 창에서 Google 로그인 후, 올릴 채널이 선택돼 있는지 확인하세요. 창은 닫지 않아도 됩니다.")
 
 
-def is_logged_in(account: str = DEFAULT_ACCOUNT) -> bool:
+def is_logged_in(account: Optional[str] = None) -> bool:
     with Session(account) as s:
         return s.logged_in()
 
@@ -366,10 +446,50 @@ def _find_url_by_title(s: Session, title: str) -> Optional[str]:
     return None
 
 
+# ── 예약 공개 (Studio 「예약」 칸 — 업로드는 지금, 공개는 그 시각. PC 가 꺼져 있어도 된다) ──────────
+def _date_text(sample: str, when: datetime) -> str:
+    """칸에 적힌 꼴을 흉내 낸다 — 한국어 「2026. 10. 5.」, 영어 「Oct 5, 2026」"""
+    if re.search(r"[A-Za-z]{3}", sample or ""):
+        return f"{when:%b} {when.day}, {when.year}"
+    return f"{when.year}. {when.month}. {when.day}."
+
+
+def _time_text(sample: str, when: datetime) -> str:
+    h12 = when.hour % 12 or 12
+    if "오전" in (sample or "") or "오후" in (sample or ""):
+        return f"{'오전' if when.hour < 12 else '오후'} {h12}:{when.minute:02d}"
+    if re.search(r"AM|PM", sample or "", re.I):
+        return f"{h12}:{when.minute:02d} {'AM' if when.hour < 12 else 'PM'}"
+    return when.strftime("%H:%M")
+
+
+def _set_schedule(s: "Session", when: datetime) -> None:
+    page = s.page
+    page.locator(SEL["schedule_open"]).first.click(timeout=10_000)
+    time.sleep(0.8)
+    page.locator(SEL["date_trigger"]).first.click(timeout=10_000)
+    di = page.locator(SEL["date_input"]).first
+    di.wait_for(state="visible", timeout=10_000)
+    txt = _date_text(di.input_value(), when)
+    di.fill(txt)
+    di.press("Enter")
+    time.sleep(0.6)
+    ti = page.locator(SEL["time_input"]).first
+    ti.wait_for(state="visible", timeout=10_000)
+    ttxt = _time_text(ti.input_value(), when)
+    ti.click()
+    ti.fill(ttxt)
+    ti.press("Enter")
+    time.sleep(0.6)
+    log(f"  예약 입력: {txt} {ttxt}")
+    s.shot("schedule-set")
+
+
 # ── 업로드 ───────────────────────────────────────────────────────────────
 def upload(script: Dict[str, Any], video: Path, *, chapters: List[str], thumb: Optional[Path] = None,
-           visibility: str = "unlisted", account: str = DEFAULT_ACCOUNT, dry_run: bool = False,
-           playlist: str = "") -> Dict[str, Any]:
+           visibility: str = "unlisted", account: Optional[str] = None, dry_run: bool = False,
+           playlist: str = "", when: Optional[datetime] = None) -> Dict[str, Any]:
+    """when 이 있으면 YouTube 예약 공개(그 시각에 공개), 없으면 visibility 로 바로 게시."""
     yt = script.get("youtube") or {}
     title = (yt.get("title") or script.get("title") or "")[:100]
     desc = description(script, chapters)
@@ -415,8 +535,12 @@ def upload(script: Dict[str, Any], video: Path, *, chapters: List[str], thumb: O
             for _ in range(3):
                 _click(page, SEL["next"], TEXT["next"], role="button", timeout=30_000)
                 time.sleep(1.5)
-            log(f"  ⑤ 공개 범위: {visibility}")
-            _click(page, SEL["vis"][visibility], TEXT[visibility])
+            if when:
+                log(f"  ⑤ 예약 공개: {when:%m월 %d일 %H:%M}")
+                _set_schedule(s, when)
+            else:
+                log(f"  ⑤ 공개 범위: {visibility}")
+                _click(page, SEL["vis"][visibility], TEXT[visibility])
         except Exception as e:
             s.shot("stopped")
             raise PostError(f"{str(e)[:200]} — 영상은 이미 들어갔습니다. 열린 Studio 창에서 나머지를 직접 마무리하세요"
@@ -437,5 +561,6 @@ def upload(script: Dict[str, Any], video: Path, *, chapters: List[str], thumb: O
         if not url:                       # 업로드 창에서 주소를 못 읽었으면 채널 콘텐츠 목록에서 제목으로
             url = _find_url_by_title(s, title)
         log(f"  ⑦ 끝: {url}")
-        return {"url": url, "videoId": video_id(url), "title": title, "visibility": visibility, "playlist": playlist,
-                "at": datetime.now().isoformat(timespec="seconds")}
+        return {"url": url, "videoId": video_id(url), "title": title, "visibility": "scheduled" if when else visibility,
+                "scheduled_for": when.strftime("%Y-%m-%d %H:%M") if when else None, "playlist": playlist,
+                "account": s.account, "at": datetime.now().isoformat(timespec="seconds")}

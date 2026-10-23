@@ -29,7 +29,7 @@ def run(job: Job, force: bool = False) -> None:
     book = job.book
     if force or not (book / "pages.json").exists():
         log(f"s0 원문 페이지 렌더: {job.paper.name}")
-        _py("render.py", str(job.paper), str(book), "--id", job.id, "--title", m["title"], "--exam", m["exam"],
+        _py("render.py", str(job.paper), str(book), "--id", job.book_id, "--title", m["title"], "--exam", m["exam"],
             "--subject", m["subject"], "--year", str(m["year"]), "--round", f"{m['booklet']}책형")
     if force or not (book / "regions.json").exists():
         log("s0 문항 영역 찾기")
