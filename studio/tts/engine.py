@@ -6,7 +6,8 @@
   · 합성 직전 발음 변환(발음사전 pronunciation_map.yaml + 영문 약어 + 연도·숫자)
 모델·목소리: <저장소>/assets/supertonic/onnx/*.onnx · voice_styles/{F1..F5,M1..M5}.json
   — setup.bat 이 `python -m studio tts-setup` 으로 HuggingFace Supertone/supertonic-3 에서 내려받는다(저장소에는 올리지 않음).
-발음 사전: studio/tts/pronunciation_map.yaml(기본) + studio/pronunciation.yaml(프로젝트 추가분, 있으면 덮어씀)
+발음 사전: studio/tts/pronunciation_map.yaml(기본) + studio/pronunciation.yaml(공통) + studio/dict/<과목id>.yaml(과목)
+  — 뒤의 것이 같은 키를 덮어쓴다. 파일이 바뀌면 다음 합성에서 다시 읽는다.
 """
 from __future__ import annotations
 
@@ -24,6 +25,7 @@ ONNX_FILES = ["duration_predictor.onnx", "text_encoder.onnx", "vector_estimator.
 VOICES = ["F1", "F2", "F3", "F4", "F5", "M1", "M2", "M3", "M4", "M5"]
 PMAP = Path(__file__).parent / "pronunciation_map.yaml"
 PROJECT_PMAP = Path(__file__).resolve().parent.parent / "pronunciation.yaml"
+DICT_DIR = Path(__file__).resolve().parent.parent / "dict"
 ASSETS = Path(__file__).resolve().parents[2] / "assets" / "supertonic"
 
 _SENT_END_RE = re.compile(r"(?<=[.!?。！？…])\s+")
@@ -37,8 +39,43 @@ def assets_dir() -> Path:
     return ASSETS
 
 
-def _dict_version() -> float:
-    return max((p.stat().st_mtime for p in (PMAP, PROJECT_PMAP) if p.exists()), default=0.0)
+def subject_dict(subject: Optional[str]) -> Optional[Path]:
+    """과목 사전 파일 — 컴퓨터일반 → studio/dict/computer.yaml"""
+    if not subject:
+        return None
+    from ..job import SUBJECT_IDS
+    return DICT_DIR / f"{SUBJECT_IDS.get(subject, subject)}.yaml"
+
+
+def dict_files(subject: Optional[str] = None) -> List[Path]:
+    """합치는 순서(뒤가 이김): 기본 → 공통 → 과목"""
+    sd = subject_dict(subject)
+    return [PMAP, PROJECT_PMAP] + ([sd] if sd else [])
+
+
+_PMAPS: Dict[Optional[str], tuple] = {}
+
+
+def pmap_for(subject: Optional[str] = None):
+    """과목 사전까지 합친 발음 사전(파일 mtime 이 바뀌면 다시 읽는다)"""
+    from .pronunciation import PronunciationMap, load_pronunciation_map
+    files = dict_files(subject)
+    ver = tuple(p.stat().st_mtime if p.exists() else 0.0 for p in files)
+    hit = _PMAPS.get(subject)
+    if hit and hit[0] == ver:
+        return hit[1]
+    rules: Dict[str, str] = {}
+    for p in files:
+        if p.exists():
+            rules.update(load_pronunciation_map(p).rules)
+    pm = PronunciationMap(rules)
+    _PMAPS[subject] = (ver, pm)
+    return pm
+
+
+def spoken(text: str, subject: Optional[str] = None) -> str:
+    """실제로 읽는 소리 — 사전 + 모르는 영문 약어 철자 + 연도·단위 숫자"""
+    return pmap_for(subject).apply(text, spell_unknown_acronyms=True, convert_years=True)
 
 
 def missing() -> List[str]:
@@ -105,24 +142,12 @@ class Engine:
 
     def __init__(self) -> None:
         from .helper import load_text_to_speech_with_providers
-        from .pronunciation import load_pronunciation_map
         miss = missing()
         if miss:
             raise RuntimeError(f"SuperTonic3 모델 파일이 없습니다({len(miss)}개) — setup.bat 을 먼저 실행하세요")
         self._tts = load_text_to_speech_with_providers(str(assets_dir() / "onnx"), _providers())
         self.sample_rate = int(self._tts.sample_rate)
         self._styles: Dict[str, object] = {}
-        self._pver = None
-        self._load_dict()
-
-    def _load_dict(self) -> None:
-        """기본 사전 + 프로젝트 사전(있으면 덮어씀). 파일이 바뀌면 다음 합성에서 다시 읽는다."""
-        from .pronunciation import PronunciationMap, load_pronunciation_map
-        rules = dict(load_pronunciation_map(PMAP).rules)
-        if PROJECT_PMAP.exists():
-            rules.update(load_pronunciation_map(PROJECT_PMAP).rules)
-        self._pmap = PronunciationMap(rules)
-        self._pver = _dict_version()
 
     @classmethod
     def get(cls) -> "Engine":
@@ -149,10 +174,11 @@ class Engine:
             return full[: max(0, min(n, full.shape[-1]))]
         return full[: min(int(nz[-1]) + int(self.sample_rate * 0.15), full.shape[-1])]
 
-    def synth(self, text: str, *, voice: str, speed: float = 1.0, lang: str = "ko") -> np.ndarray:
-        if self._pver != _dict_version():
-            self._load_dict()
-        text = self._pmap.apply(text, spell_unknown_acronyms=True, convert_years=True)
+    def synth(self, text: str, *, voice: str, speed: float = 1.0, lang: str = "ko",
+              subject: Optional[str] = None, raw: bool = False) -> np.ndarray:
+        """raw=True 면 사전을 거치지 않고 그대로 읽는다(음성 체크에서 손으로 고친 발음)."""
+        if not raw:
+            text = spoken(text, subject)
         style = self._style(voice)
         pieces = _split_for_tts(text)
         if not pieces:

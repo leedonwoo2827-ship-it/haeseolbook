@@ -1,6 +1,7 @@
 """s3 목소리: 대본 문장별 SuperTonic3 합성 → narration.wav + timing.json
 
 - 문장 캐시: audio/lines/<sha1(발음 사전 적용 후 문장, 목소리, 속도)>.wav — 사전을 고치면 그 문장만 다시 — 고친 문장만 다시 합성(중단 후 이어서도 그대로 재사용)
+- 음성 체크에서 손으로 고친 발음: script/voice_fix.json {줄ID: {tts, src}} — src(고칠 때의 say)가 지금 say 와 같을 때만 쓴다
 - 무음: 시작 0.6s · 같은 씬 문장 사이 0.35s · 씬이 바뀌면 0.8s · 끝 1.5s
 - timing.json: {duration, voice, speed, hash, cues:[{i,scene,chapter,cap,start,end}], scenes:[{n,chapter,board,start,end}], chapters:[{i,title,quiz,start}]}
 """
@@ -8,7 +9,8 @@ from __future__ import annotations
 
 import hashlib
 import wave
-from typing import Any, Dict, List
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 
@@ -20,15 +22,31 @@ LEAD, GAP, SCENE_GAP, TAIL = 0.6, 0.35, 0.8, 1.5
 
 
 def flatten(script: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """장 → 씬 → 문장을 한 줄로 (씬 번호는 전체에서 1부터)."""
+    """장 → 씬 → 문장을 한 줄로 (씬 번호는 전체에서 1부터, 줄 ID 는 L001…)."""
     out, n = [], 0
     for ci, ch in enumerate(script["chapters"], start=1):
         for sc in ch["scenes"]:
             n += 1
             for ln in sc["lines"]:
-                out.append({"chapter": ci, "scene": n, "board": sc["board"], "say": (ln.get("say") or ln.get("cap") or "…").strip(),
+                out.append({"id": f"L{len(out) + 1:03d}", "chapter": ci, "scene": n, "board": sc["board"],
+                            "say": (ln.get("say") or ln.get("cap") or "…").strip(),
                             "cap": (ln.get("cap") or ln.get("say") or "").strip()})
     return out
+
+
+def fixes(job: Job) -> Dict[str, Any]:
+    return read_json(job.scripts / "voice_fix.json", {}) or {}
+
+
+def fixed_tts(fx: Dict[str, Any], it: Dict[str, Any]) -> Optional[str]:
+    """손으로 고친 발음 — 고친 뒤 대본(say)이 바뀌었으면 쓰지 않는다"""
+    f = fx.get(it["id"]) or {}
+    return f.get("tts") if f.get("tts") and f.get("src") == it["say"] else None
+
+
+def line_wav(job: Job, spoken: str, voice: str, speed: float) -> Path:
+    """문장 wav 캐시 경로 — s3 와 음성 체크 화면이 같은 이름을 써서 미리 합성한 것을 그대로 재사용"""
+    return job.audio / "lines" / (hashlib.sha1(f"{spoken}|{voice}|{speed}".encode()).hexdigest()[:16] + ".wav")
 
 
 def _read_wav(path) -> np.ndarray:
@@ -43,10 +61,11 @@ def run(job: Job, force: bool = False) -> Dict[str, Any]:
     voice, speed = job.setting("voice", "F1"), float(job.setting("speed", 1.0))
     items = flatten(script)
     eng = engine.Engine.get()
-    # 캐시 기준 = 실제로 읽는 발음(사전 적용 후) — 발음 사전을 고치면 그 문장만 다시 합성된다
-    spoken = lambda t: eng._pmap.apply(t, spell_unknown_acronyms=True, convert_years=True)   # noqa: E731
+    subject = job.setting("subject")
+    fx = fixes(job)
+    # 캐시 기준 = 실제로 읽는 발음(손으로 고친 발음 또는 사전 적용 후) — 사전을 고치면 그 문장만 다시 합성된다
     for it in items:
-        it["spoken"] = spoken(it["say"])
+        it["spoken"] = fixed_tts(fx, it) or engine.spoken(it["say"], subject)
     key = hashlib.sha1(repr([(i["spoken"], i["scene"]) for i in items] + [voice, speed, LEAD, GAP, SCENE_GAP, TAIL]).encode()).hexdigest()[:16]
     tpath, npath = job.audio / "timing.json", job.audio / "narration.wav"
     old = read_json(tpath)
@@ -59,10 +78,9 @@ def run(job: Job, force: bool = False) -> Dict[str, Any]:
     lines_dir.mkdir(parents=True, exist_ok=True)
     new = 0
     for idx, it in enumerate(items):
-        h = hashlib.sha1(f"{it['spoken']}|{voice}|{speed}".encode()).hexdigest()[:16]
-        it["file"] = lines_dir / f"{h}.wav"
+        it["file"] = line_wav(job, it["spoken"], voice, speed)
         if not it["file"].exists():
-            engine.write_wav(it["file"], eng.synth(it["say"], voice=voice, speed=speed), sr)
+            engine.write_wav(it["file"], eng.synth(it["spoken"], voice=voice, speed=speed, raw=True), sr)
             new += 1
             if new % 20 == 0:
                 log(f"  합성 {idx + 1}/{len(items)}")

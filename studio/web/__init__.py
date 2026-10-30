@@ -4,6 +4,7 @@
   ② 만들기 회차 표(대본·판서·음성·화면·영상·업로드·연동) + 고른 회차에 단계 실행(한 번에 하나, 차례로)
   ③ 결과 보기 회차 하나: 영상·썸네일·챕터·문항별 대본 편집·판서 화면
   ④ 올리기 유튜브 로그인·업로드(일부공개)·이북 연동
+  ⑤ 음성 체크 문장별 실제 발음 보기·고치기·다시 합성 + 발음 사전(공통·과목) — studio/voicecheck.py
   /panel   올리기 사이드 패널 — 오른쪽 좁은 창(계정·회차·올리기·연동·로그), 왼쪽은 그 계정의 YouTube Studio Chrome
 실행은 `python -m studio queue …` 하위 프로세스 하나(창을 닫아도 회차 폴더의 체크포인트가 남는다).
 """
@@ -325,6 +326,59 @@ def create_app():
         write_json(j.dir / "script.json", assemble(j, items))
         (j.dir / "script.edit.json").unlink(missing_ok=True)
         return {"ok": True}
+
+    # ── ⑤ 음성 체크 · 발음 사전 ─────────────────────────────
+    def vc(fn, *a):
+        try:
+            return fn(*a)
+        except (KeyError, ValueError) as e:
+            raise HTTPException(400, str(e))
+        except (RuntimeError, ImportError) as e:      # 엔진·모델 없음 · Claude 실패
+            raise HTTPException(503, str(e))
+
+    @app.get("/api/jobs/{job_id}/voice")
+    def voice_lines(job_id: str):
+        from .. import voicecheck
+        return vc(voicecheck.lines, job_or_404(job_id))
+
+    @app.post("/api/jobs/{job_id}/voice/line")
+    def voice_line(job_id: str, body: Dict[str, Any] = Body(...)):
+        from .. import voicecheck
+        return vc(voicecheck.save_line, job_or_404(job_id), str(body["id"]), str(body.get("tts", "")), bool(body.get("synth")))
+
+    @app.post("/api/jobs/{job_id}/voice/ai")
+    def voice_ai(job_id: str, body: Dict[str, Any] = Body(...)):
+        from .. import voicecheck
+        return {"suggest": vc(voicecheck.ai_fix, job_or_404(job_id), [str(i) for i in body.get("ids") or []], body.get("tts") or {})}
+
+    @app.post("/api/jobs/{job_id}/voice/check")
+    def voice_check(job_id: str, body: Dict[str, Any] = Body(...)):
+        from .. import voicecheck
+        return vc(voicecheck.check, job_or_404(job_id), str(body["id"]), str(body.get("tts", "")), bool(body.get("ok")))
+
+    @app.post("/api/jobs/{job_id}/voice/ok")
+    def voice_ok(job_id: str, body: Dict[str, Any] = Body(...)):
+        job_or_404(job_id).update_state(voice_ok=True if body.get("ok") else None)
+        return {"ok": True}
+
+    @app.get("/api/jobs/{job_id}/voice/wav")
+    def voice_wav(job_id: str, id: str):
+        from .. import voicecheck
+        p = vc(voicecheck.wav_of, job_or_404(job_id), id)
+        if not p.exists():
+            raise HTTPException(404, "아직 합성하지 않았습니다")
+        return FileResponse(p, media_type="audio/wav")
+
+    @app.get("/api/dict")
+    def dict_get(subject: str, job: Optional[str] = None):
+        from .. import voicecheck
+        return voicecheck.dict_list(subject, job_or_404(job) if job else None)
+
+    @app.post("/api/dict")
+    def dict_post(body: Dict[str, Any] = Body(...)):
+        from .. import voicecheck
+        return vc(voicecheck.dict_put, body.get("subject"), str(body.get("k", "")), str(body.get("v", "")),
+                  str(body.get("src", "과목")), bool(body.get("delete")))
 
     @app.get("/api/jobs/{job_id}/file/{kind}")
     def file(job_id: str, kind: str, no: Optional[int] = None):

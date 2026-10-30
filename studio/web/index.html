@@ -48,6 +48,27 @@ video,img.pv{width:100%;border-radius:10px;border:1px solid var(--line);backgrou
 .tag{font-size:12px;color:var(--sub);align-self:center}
 a{color:#1f5fbf}
 .chap{columns:3;font-size:13px}
+/* ⑤ 음성 체크 — 왼쪽 줄 목록 | 오른쪽 발음 사전(⇥ 로 접고, 좁은 창에서는 오른쪽에서 밀려 나온다) */
+.vc{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:16px;align-items:start}.vc.closed{grid-template-columns:minmax(0,1fr)}.vc.closed .vdict{display:none}
+.vnums{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}.vnums button{font:inherit;font-size:13px;min-width:36px;border:1px solid var(--line);background:#f5f6f8;border-radius:7px;padding:4px 7px;cursor:pointer}
+.vnums button.ok{background:var(--okbg);color:var(--ok);border-color:#bfe3c9}.vnums button.half{background:var(--warnbg);color:var(--warn)}.vnums button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.vhead{display:flex;gap:14px;align-items:flex-start;margin:6px 0 10px}.vhead img{width:420px;max-width:45%;border-radius:8px;border:1px solid var(--line);cursor:zoom-in}
+.vl{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0 0 10px;background:#fff}
+.vl .vh{display:flex;gap:6px;align-items:center;margin-bottom:6px}.vl .vh b{font:12px Consolas,monospace;background:#eef1f5;border-radius:5px;padding:1px 6px}
+.v2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.v2 small{display:block;color:var(--sub);font-size:12px;margin-bottom:2px}
+.vsay{background:#f6f7f9;border-radius:7px;padding:6px 8px;font-size:14px;min-height:58px}.vcap{color:var(--sub);font-size:12.5px;margin-top:4px}
+.vtts{width:100%;font:inherit;font-size:14px;border:1px solid #cfd6e0;border-radius:7px;padding:6px 8px;min-height:58px;resize:vertical}
+.vbtn{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}.vbtn audio{height:32px;flex:1;min-width:220px}
+.vsug{margin-top:8px;background:#fff8e8;border:1px solid #f0d79a;border-radius:8px;padding:8px 10px;font-size:14px}.vsug del{color:var(--bad)}.vsug ins{color:var(--bad);font-weight:700;text-decoration:none;background:#fde8e6}
+mark.left{background:#fde8e6;color:var(--bad)}
+.vdict{position:sticky;top:10px;max-height:calc(100vh - 20px);overflow:auto;border:1px solid var(--line);border-radius:12px;padding:12px;background:#fff}
+.vdict input,.vdict select{font:inherit;font-size:13.5px;border:1px solid #cfd6e0;border-radius:7px;padding:5px 8px;width:100%}
+.vdict .row2{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px 0}
+.chips{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0 8px}.chips button{font:inherit;font-size:12.5px;border:0;background:var(--warnbg);color:var(--warn);border-radius:99px;padding:2px 9px;cursor:pointer}
+.dl{font-size:13px;margin-top:6px}.dl div{display:grid;grid-template-columns:1fr 1fr 34px 18px;gap:4px;align-items:center;border-bottom:1px solid #f0f2f5;padding:2px 0}
+.dl input{border-color:transparent;padding:2px 5px}.dl input:focus{border-color:#8fa3bc}.dl span{font-size:11px;color:var(--sub)}.dl span.s과목{color:var(--teal);font-weight:700}.dl span.s공통{color:var(--navy)}
+.dl button{border:0;background:none;color:#aab3c0;cursor:pointer;font-size:15px}.dl button:hover{color:var(--bad)}
+@media(max-width:1100px){.vc{grid-template-columns:minmax(0,1fr)}.vdict{position:fixed;right:0;top:0;bottom:0;width:360px;max-height:none;border-radius:0;z-index:20;box-shadow:-8px 0 24px #0003}.v2{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -55,7 +76,7 @@ a{color:#1f5fbf}
   <h1>해설북 · 스튜디오</h1>
   <select id="subject"></select>
   <div class="st" id="tools"></div>
-  <nav><button data-tab="src">① 원문</button><button data-tab="make" class="on">② 만들기</button><button data-tab="view">③ 결과 보기</button><button data-tab="post">④ 올리기</button></nav>
+  <nav><button data-tab="src">① 원문</button><button data-tab="make" class="on">② 만들기</button><button data-tab="view">③ 결과 보기</button><button data-tab="post">④ 올리기</button><button data-tab="voice">⑤ 음성 체크</button></nav>
   <div class="stopbar"><button id="stop">■ 멈춤</button><span class="run" id="runinfo"></span><span style="flex:1"></span><a href="http://127.0.0.1:8080/" target="_blank" style="color:#fff">로컬 해설북 열기 ↗</a></div>
 </header>
 <main>
@@ -89,6 +110,11 @@ a{color:#1f5fbf}
       <span class="sep"></span><button class="b" data-st="aside" title="완성 영상을 롱폼 공방 작업 폴더로 복사 — 공방 「④ 올리기」에서 업로드. 올린 뒤 여기서 「이북 연동」을 누르면 그 주소를 가져옵니다">롱폼 공방으로 보내기</button></div>
     <table><thead><tr><th>회차</th><th>영상</th><th>업로드</th><th>이북</th></tr></thead><tbody id="postrows"></tbody></table>
     <p class="muted">업로드는 열린 크롬(이 폴더 전용 프로필)에서 자동으로 입력됩니다. 중간에 멈추면 그 창에서 나머지만 직접 마무리하세요(다시 누르면 초안이 하나 더 생깁니다). 업로드 전 「이북 연동」은 영상 없이 교재만 미리 게시합니다.</p>
+  </section>
+  <section id="tab-voice" class="panel" hidden>
+    <div class="bar"><span class="lab">음성 체크</span><select id="vjob"></select><span id="vcount"></span>
+      <span style="flex:1"></span><button class="b" id="vbake" title="고친 발음·사전으로 3 목소리 → 4 화면 → 5 영상 (바뀐 문장만 다시 합성)">음성 고친 판 굽기</button><button class="b teal" id="vdone">음성 체크 완료 표시</button><button class="b" id="vdict" title="발음 사전 열기·접기">발음 사전 ⇥</button></div>
+    <div class="vc" id="vc"><div id="vmain"><p class="muted">③ 결과 보기에서 회차를 고르거나 위에서 고르세요.</p></div><aside class="vdict" id="vdictbox"></aside></div>
   </section>
   <pre class="log" id="log"></pre>
 </main>
@@ -131,13 +157,16 @@ async function load(){
 async function logTick(){const r=await fetch('/api/log');const t=await r.text();const el=$('#log');const at=el.scrollTop+el.clientHeight>=el.scrollHeight-20;if(el.textContent!==t){el.textContent=t;if(at)el.scrollTop=el.scrollHeight}}
 document.addEventListener('change',e=>{
   if(e.target.id==='acc'){api('/api/accounts/use',{method:'POST',body:JSON.stringify({name:e.target.value})});return}
+  if(e.target.id==='vjob'){viewId=e.target.value;vch=0;loadVoice();return}
+  if(e.target.classList.contains('dv')){const r=e.target.closest('[data-dk]');dictPut({k:r.dataset.dk,v:e.target.value,src:r.dataset.src==='기본'?'공통':r.dataset.src});return}
+  if(e.target.classList.contains('vok')){vCheck(e.target.closest('.vl').dataset.id,e.target.checked);return}
   if(e.target.id==='subject'){subject=e.target.value;try{localStorage.setItem('hsb.subject',subject)}catch{};sel.clear();load()}
   if(e.target.id==='all'){O.rows.forEach(r=>e.target.checked?sel.add(r.key):sel.delete(r.key));load()}
   if(e.target.dataset.k){e.target.checked?sel.add(e.target.dataset.k):sel.delete(e.target.dataset.k);load()}
 });
 document.addEventListener('click',async e=>{
   const nb=e.target.closest('nav button');
-  if(nb){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b===nb));['src','make','view','post'].forEach(t=>$('#tab-'+t).hidden=t!==nb.dataset.tab);return}
+  if(nb){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b===nb));['src','make','view','post','voice'].forEach(t=>$('#tab-'+t).hidden=t!==nb.dataset.tab);if(nb.dataset.tab==='voice')loadVoice();return}
   const sb=e.target.closest('button[data-st]');
   if(sb){try{await api('/api/run',{method:'POST',body:JSON.stringify({items:[...sel].sort(),stages:sb.dataset.st.split(','),subject,force:$('#force').checked,visibility:$('#vis').value,account:$('#acc').value})});load()}catch(x){alert(x.message)}return}
   if(e.target.id==='stop'){if(confirm('지금 하던 단계를 멈출까요? (끝난 문항·문장은 저장돼 있어 다시 실행하면 이어서 합니다)')){await api('/api/stop',{method:'POST'});load()}return}
@@ -145,6 +174,7 @@ document.addEventListener('click',async e=>{
   if(e.target.id==='openpanel'){await api('/api/panel/open',{method:'POST'});return}
   const pu=e.target.closest('button[data-purl]');
   if(pu){const inp=document.querySelector(`input.purl[data-id="${pu.dataset.purl}"]`);try{const r=await api(`/api/jobs/${pu.dataset.purl}/posted`,{method:'POST',body:JSON.stringify({url:inp.value,visibility:$('#vis').value})});alert('저장했습니다: '+r.url+' — 이제 그 회차를 체크하고 「이북 연동」을 누르세요.');load()}catch(x){alert(x.message)}return}
+  if(e.target.closest('#tab-voice')&&await voiceClick(e))return;
   const v=e.target.closest('a[data-view]');
   if(v){e.preventDefault();viewId=v.dataset.view;document.querySelector('nav button[data-tab=view]').click();showView();return}
   const s=e.target.closest('button[data-save]');
@@ -164,6 +194,119 @@ async function showView(){
   ${d.quizzes.map(q=>`<div class="quiz" data-no="${q.no}"><div class="bar" style="margin:0 0 4px"><h3>${q.no}. ${esc(q.title)}</h3><span class="c warn">정답 ${esc((q.answers||[]).join(', '))}</span><span class="muted">판서 ${q.marks}개</span>
     <a href="/api/jobs/${d.id}/file/frame?no=${q.no}" target="_blank">판서 화면 보기</a><span style="flex:1"></span><button class="b" data-save="${q.no}">저장</button></div>
     ${['read','solve','answer'].map(k=>q.lines[k].map((l,i)=>`<div class="line" data-k="${k}"><span class="tag">${{read:'소개',solve:'풀이',answer:'정답'}[k]} ${i+1}</span><textarea class="say">${esc(l.say)}</textarea><textarea class="cap">${esc(l.cap)}</textarea></div>`).join('')).join('')}</div>`).join('')}`;
+}
+// ── ⑤ 음성 체크 ───────────────────────────────────────────
+let V=null, vch=0, D=null, vdictOpen=innerWidth>=1100;   // 좁은 창에서는 사전이 덮개라 닫아 둔다
+try{const v=localStorage.getItem('hsb.vdict');if(v&&innerWidth>=1100)vdictOpen=v==='1'}catch{}
+const LEFT=/[A-Za-z0-9²³√∑Σ≤≥≠×÷±∞π^%=<>+*\/]/;
+const markLeft=t=>esc(t).replace(/[A-Za-z0-9²³√∑Σ≤≥≠×÷±∞π^%=+*\/]+|&#60;|&#62;/g,m=>`<mark class="left">${m}</mark>`);
+const vLine=id=>V.chapters.flatMap(c=>c.lines).find(l=>l.id===id);
+async function loadVoice(){
+  const ex=(O?.rows||[]).filter(r=>r.exists&&r.script);
+  if(!viewId&&ex.length)viewId=ex[ex.length-1].id;
+  $('#vjob').innerHTML=ex.map(r=>`<option value="${esc(r.id)}" ${r.id===viewId?'selected':''}>${label(r)}</option>`).join('');
+  $('#vc').classList.toggle('closed',!vdictOpen);
+  if(!viewId)return;
+  try{V=await api(`/api/jobs/${viewId}/voice`)}catch(x){$('#vmain').innerHTML=`<p class="muted">${esc(x.message)}</p>`;return}
+  vch=Math.max(0,Math.min(vch,V.chapters.length-1));renderVoice();loadDict();
+}
+function chName(c){return c.quiz?String(c.quiz):(c.kind==='intro'?'시작':c.kind==='outro'?'맺음':c.title)}
+function vCount(){
+  V.checked=V.chapters.flatMap(c=>c.lines).filter(l=>l.ok).length;
+  $('#vcount').innerHTML=chip(V.checked===V.total,`확인 ${V.checked} / ${V.total}줄`,V.checked===V.total?'ok':'warn')+(V.voiceOk?' '+chip(true,'음성 체크 완료'):'');
+  $('#vdone').textContent=V.voiceOk?'완료 표시 지우기':'음성 체크 완료 표시';
+  document.querySelectorAll('.vnums button[data-ch]').forEach(b=>{const c=V.chapters[+b.dataset.ch];const n=c.lines.filter(l=>l.ok).length;b.className=(+b.dataset.ch===vch?'on':n===c.lines.length?'ok':n?'half':'')});
+}
+function vCard(l){
+  const tag=[l.edited&&chip(true,'발음 고침','warn'),l.stale&&chip(true,'대본 바뀜 — 고친 발음 무시됨','bad'),l.left&&chip(true,'영문·숫자·기호 남음','bad'),!l.wav&&chip(false,'합성 전')].filter(Boolean).join('');
+  return `<div class="vl" data-id="${l.id}"><div class="vh"><b>${l.id}</b>${tag}<span style="flex:1"></span><label><input type="checkbox" class="vok" ${l.ok?'checked':''}> 확인</label></div>
+  <div class="v2"><div><small>대본 (원래 문장 · 영문·숫자·기호는 빨강)</small><div class="vsay">${markLeft(l.say)}</div><div class="vcap">자막: ${esc(l.cap)}</div></div>
+    <div><small>발음 (TTS 입력 · 실제로 읽는 글)</small><textarea class="vtts">${esc(l.tts)}</textarea></div></div>
+  <div class="vbtn">${l.wav?`<audio controls preload="none" src="/api/jobs/${viewId}/voice/wav?id=${l.id}&t=${Date.now()}"></audio>`:'<span class="muted" style="flex:1">아직 합성하지 않았습니다</span>'}
+    <button class="b" data-va="ai">AI 발음 교정</button><button class="b" data-va="auto" title="사전대로 다시(고친 것 되돌리기)">대본에서 발음 만들기</button><button class="b teal" data-va="synth">발음대로 다시 합성</button></div><div class="vsug" hidden></div></div>`;
+}
+function renderVoice(){
+  const c=V.chapters[vch];
+  $('#vmain').innerHTML=`<div class="vnums">${V.chapters.map((x,i)=>`<button data-ch="${i}" title="${esc(x.title)}">${esc(chName(x))}</button>`).join('')}</div>
+  <div class="bar" style="margin:4px 0"><b>${vch+1} / ${V.chapters.length}</b><span class="muted">${esc(c.title)} · ${c.lines.length}줄</span><span style="flex:1"></span>
+    <button class="b" data-vall="ai">이 장 전부 AI 발음 교정</button><button class="b" data-vnav="-1">이전</button><button class="b" data-vnav="1">다음</button></div>
+  ${c.quiz?`<div class="vhead"><img src="/api/jobs/${viewId}/file/frame?no=${c.quiz}" alt="" data-zoom><p class="muted">문항 화면 — 수식·코드가 어떻게 생겼는지 보며 발음을 고치세요. 사전(오른쪽)에 넣으면 이 과목 모든 회차에, 줄에서 고치면 이 줄에만 적용됩니다.</p></div>`:''}
+  ${c.lines.map(vCard).join('')}`;
+  vCount();
+}
+function vReplace(l){const el=document.querySelector(`.vl[data-id="${l.id}"]`);if(el)el.outerHTML=vCard(l);vCount()}
+function diffRed(a,b){
+  const x=a.split(' '),y=b.split(' '),n=x.length,m=y.length,L=Array.from({length:n+1},()=>new Array(m+1).fill(0));
+  for(let i=n-1;i>=0;i--)for(let j=m-1;j>=0;j--)L[i][j]=x[i]===y[j]?L[i+1][j+1]+1:Math.max(L[i+1][j],L[i][j+1]);
+  const out=[];let i=0,j=0;
+  while(i<n||j<m){if(i<n&&j<m&&x[i]===y[j]){out.push(esc(y[j]));i++;j++}else if(j<m&&(i>=n||L[i][j+1]>=L[i+1][j])){out.push(`<ins>${esc(y[j])}</ins>`);j++}else{out.push(`<del>${esc(x[i])}</del>`);i++}}
+  return out.join(' ');
+}
+async function vSave(id,tts,synth){
+  const r=await api(`/api/jobs/${viewId}/voice/line`,{method:'POST',body:JSON.stringify({id,tts,synth})});
+  const l=vLine(id);Object.assign(l,{ok:l.ok&&l.tts===r.tts,tts:r.tts,edited:r.edited,wav:r.wav,stale:false,left:LEFT.test(r.tts)});
+  vReplace(l);
+  if(synth)document.querySelector(`.vl[data-id="${id}"] audio`)?.play();
+}
+async function vCheck(id,ok){
+  const l=vLine(id),ta=document.querySelector(`.vl[data-id="${id}"] .vtts`);
+  try{if(ta&&ta.value.trim()!==l.tts)await vSave(id,ta.value,false);
+    await api(`/api/jobs/${viewId}/voice/check`,{method:'POST',body:JSON.stringify({id,tts:l.tts,ok})});l.ok=ok;vReplace(l)}catch(x){alert(x.message)}
+}
+async function vAI(ids,btn){
+  const tts={};ids.forEach(id=>{tts[id]=document.querySelector(`.vl[data-id="${id}"] .vtts`)?.value||vLine(id).tts});
+  const t=btn.textContent;btn.disabled=true;btn.textContent='교정 중…';
+  try{const r=await api(`/api/jobs/${viewId}/voice/ai`,{method:'POST',body:JSON.stringify({ids,tts})});
+    let n=0;for(const id of ids){const s=r.suggest[id],box=document.querySelector(`.vl[data-id="${id}"] .vsug`);if(!box)continue;
+      if(!s||s===tts[id]){box.hidden=true;continue}n++;box.hidden=false;box.dataset.s=s;
+      box.innerHTML=`<div>${diffRed(tts[id],s)}</div><div class="vbtn"><button class="b" data-va="skip">무시</button><button class="b teal" data-va="apply">적용 + 합성</button></div>`}
+    btn.textContent=n?(ids.length>1?`제안 ${n}줄`:t):'고칠 것 없음';setTimeout(()=>btn.textContent=t,2500)}
+  catch(x){alert(x.message);btn.textContent=t}finally{btn.disabled=false}
+}
+async function voiceClick(e){
+  const ch=e.target.closest('.vnums button[data-ch]');if(ch){vch=+ch.dataset.ch;renderVoice();return true}
+  const nv=e.target.closest('button[data-vnav]');if(nv){vch=Math.max(0,Math.min(V.chapters.length-1,vch+(+nv.dataset.vnav)));renderVoice();window.scrollTo(0,$('#tab-voice').offsetTop);return true}
+  const all=e.target.closest('button[data-vall]');if(all){vAI(V.chapters[vch].lines.map(l=>l.id),all);return true}
+  if(e.target.matches('img[data-zoom]')){window.open(e.target.src,'_blank');return true}
+  const a=e.target.closest('button[data-va]');
+  if(a){const card=a.closest('.vl'),id=card.dataset.id,ta=card.querySelector('.vtts'),act=a.dataset.va;
+    try{if(act==='ai')await vAI([id],a);
+      else if(act==='auto'){ta.value=vLine(id).auto}
+      else if(act==='synth'){a.disabled=true;a.textContent='합성 중…';await vSave(id,ta.value,true)}
+      else if(act==='skip'){card.querySelector('.vsug').hidden=true}
+      else if(act==='apply'){const s=card.querySelector('.vsug').dataset.s;ta.value=s;a.disabled=true;a.textContent='합성 중…';await vSave(id,s,true)}}
+    catch(x){alert(x.message);a.disabled=false}
+    return true}
+  if(e.target.id==='vdict'||e.target.id==='vdictx'){vdictOpen=!vdictOpen;try{localStorage.setItem('hsb.vdict',vdictOpen?'1':'0')}catch{};$('#vc').classList.toggle('closed',!vdictOpen);return true}
+  if(e.target.id==='vdone'&&V){await api(`/api/jobs/${viewId}/voice/ok`,{method:'POST',body:JSON.stringify({ok:!V.voiceOk})});V.voiceOk=!V.voiceOk;vCount();return true}
+  if(e.target.id==='vbake'){const r=O.rows.find(r=>r.id===viewId);if(!r)return true;
+    if(confirm('고친 발음·사전으로 이 회차를 3 목소리 → 4 화면 → 5 영상까지 다시 만들까요? (바뀐 문장만 다시 합성)'))
+      try{await api('/api/run',{method:'POST',body:JSON.stringify({items:[r.key],stages:['s3','s4','s5'],subject})});load()}catch(x){alert(x.message)}
+    return true}
+  const mk=e.target.closest('button[data-mk]');if(mk){$('#dk').value=mk.dataset.mk;$('#dv').focus();return true}
+  if(e.target.id==='dadd'){await dictPut({k:$('#dk').value,v:$('#dv').value,src:$('#ds').value});return true}
+  const del=e.target.closest('button[data-ddel]');if(del){const r=del.closest('[data-dk]');if(confirm(`「${r.dataset.dk}」을(를) ${r.dataset.src} 사전에서 지울까요?`))await dictPut({k:r.dataset.dk,src:r.dataset.src,delete:true});return true}
+  return false;
+}
+async function loadDict(){
+  D=await api(`/api/dict?subject=${encodeURIComponent(subject)}&job=${encodeURIComponent(viewId||'')}`);renderDict();
+}
+function renderDict(){
+  const q=($('#dq')?.value||'').trim().toLowerCase(),keep=document.activeElement?.id;
+  const rows=D.rules.filter(r=>!q||r.k.toLowerCase().includes(q)||r.v.includes(q)).slice(0,400);
+  $('#vdictbox').innerHTML=`<div class="bar" style="margin:0"><b>발음 사전</b><span style="flex:1"></span><button class="b" id="vdictx" title="접기">⇥</button></div>
+  <p class="muted" style="margin:2px 0 8px">읽는 소리가 이상하면 여기에 넣습니다 — 과목 사전은 ${esc(subject)} 모든 회차, 공통은 모든 과목. 다음 굽기에 적용됩니다.</p>
+  <b style="font-size:13.5px">이 회차에서 아직 남는 영문·수식</b>
+  <div class="chips">${(D.missing||[]).map(([w,n])=>`<button data-mk="${esc(w)}" title="눌러서 사전에 넣기">${esc(w)} ${n}</button>`).join('')||'<span class="muted">없음</span>'}</div>
+  <div class="row2"><input id="dk" placeholder="표기 (예: super())"><input id="dv" placeholder="읽는 소리 (예: 슈퍼 괄호)"></div>
+  <div class="row2"><select id="ds"><option value="과목">과목 (${esc(subject)})</option><option value="공통">공통</option></select><button class="b red" id="dadd">넣기</button></div>
+  <input id="dq" placeholder="찾기 — 표기나 소리" value="${esc(q)}" oninput="renderDict()">
+  <div class="dl">${rows.map(r=>`<div data-dk="${esc(r.k)}" data-src="${r.src}"><code>${esc(r.k)}</code><input class="dv" value="${esc(r.v)}"><span class="s${r.src}">${r.src}${r.over?'*':''}</span>${r.src==='기본'?'<i></i>':'<button data-ddel title="지우기">×</button>'}</div>`).join('')}</div>
+  <p class="muted" style="font-size:12px">과목 ${esc(D.files['과목'])} · 공통 ${esc(D.files['공통'])} · 기본 ${esc(D.files['기본'])} — 같은 표기는 과목 › 공통 › 기본 순으로 이깁니다(* 표시). 기본 항목을 고치면 공통에 덮어 씁니다.</p>`;
+  if(keep==='dq'){const i=$('#dq');i.focus();i.setSelectionRange(i.value.length,i.value.length)}
+}
+async function dictPut(b){
+  try{await api('/api/dict',{method:'POST',body:JSON.stringify({subject,...b})});await loadVoice()}catch(x){alert(x.message)}
 }
 setInterval(()=>{if(!document.querySelector('textarea:focus,select:focus,input.purl:focus')&&!document.querySelector('input.purl')?.value)load()},3000);
 setInterval(logTick,2000);
