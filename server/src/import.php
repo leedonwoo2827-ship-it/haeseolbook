@@ -19,6 +19,7 @@ const MAX_UNCOMPRESSED = 300 * 1024 * 1024;
 function import_package(string $zipPath): array
 {
     if (!class_exists(\ZipArchive::class)) throw new HttpError(500, '서버에 PHP zip 확장이 필요합니다');
+    Db::ensureColumns();   // 보기 칸(choice_no) 등 나중에 생긴 칼럼 — 운영 DB 에 손으로 ALTER 하지 않아도 되게
     $zip = new \ZipArchive();
     if ($zip->open($zipPath) !== true) throw new HttpError(400, 'zip 파일을 열 수 없습니다');
     $tmp = sys_get_temp_dir() . '/hsbpkg-' . bin2hex(random_bytes(6));

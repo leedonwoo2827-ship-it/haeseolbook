@@ -156,7 +156,13 @@ final class Db
             $sql = preg_replace('/UNIQUE KEY \w+ \(/', 'UNIQUE (', $sql);
         }
         foreach (array_filter(array_map('trim', explode(';', $sql))) as $stmt) self::pdo()->exec($stmt);
-        // CREATE TABLE IF NOT EXISTS 는 이미 있는 표에 칼럼을 더하지 않는다 — 나중에 생긴 칼럼은 여기서 채운다
+        self::ensureColumns();
+    }
+
+    /** CREATE TABLE IF NOT EXISTS 는 이미 있는 표에 칼럼을 더하지 않는다 — 나중에 생긴 칼럼을 채운다.
+     *  운영(Cafe24)은 migrate 를 돌릴 셸이 없어 패키지 적재(import_package) 때도 부른다. */
+    public static function ensureColumns(): void
+    {
         foreach (self::ADDED_COLUMNS as [$table, $col, $type]) {
             if (!self::hasColumn($table, $col)) self::pdo()->exec("ALTER TABLE {$table} ADD COLUMN {$col} {$type}");
         }
