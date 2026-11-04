@@ -167,7 +167,21 @@ def _status(r: Dict[str, Any], jid: str) -> None:
         "video": j.video.exists(), "mb": (stages.get("s5") or {}).get("mb"),
         "posted": st.get("posted"), "linked": (stages.get("s7") or {}).get("youtubeId"),
         "preview": st.get("preview_published"), "waiting": st.get("waiting"),
+        "voice": _voice_state(j, st),
     })
+
+
+def _voice_state(j: Job, st: Dict[str, Any]) -> Dict[str, Any]:
+    """④ 음성 체크 — 완료 표시를 눌렀거나 모든 줄을 확인했으면 완료, 고친 발음이 영상보다 새것이면 굽기 필요"""
+    chk, fix = j.scripts / "voice_check.json", j.scripts / "voice_fix.json"
+    vt = j.video.stat().st_mtime if j.video.exists() else 0
+    checked = len(read_json(chk, {}) or {}) if chk.exists() else 0
+    total = 0
+    if checked:
+        from ..voicecheck import flatten
+        total = len(flatten(j.script() or {"chapters": []}))
+    return {"ok": bool(st.get("voice_ok")) or bool(total and checked >= total), "checked": checked, "total": total,
+            "stale": bool(vt) and fix.exists() and fix.stat().st_mtime > vt}
 
 
 def tools() -> Dict[str, Any]:
@@ -390,7 +404,7 @@ def create_app():
         return {"id": j.id, "title": j.meta["title"], "posted": st.get("posted"), "hasVideo": j.video.exists(),
                 "description": desc, "tags": (script.get("youtube") or {}).get("tags") or [],
                 "linked": ((st.get("stages") or {}).get("s7") or {}).get("youtubeId"), "preview": st.get("preview_published"),
-                "hasThumb": j.thumb.exists(), "quizzes": quizzes, "duration": timing.get("duration"),
+                "hasThumb": j.thumb.exists(), "voice": _voice_state(j, st), "quizzes": quizzes, "duration": timing.get("duration"),
                 "chapters": [{"title": c["title"], "start": c["start"]} for c in timing.get("chapters", [])],
                 "youtube": (script.get("youtube") or {})}
 

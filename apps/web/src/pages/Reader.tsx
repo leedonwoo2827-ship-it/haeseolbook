@@ -250,7 +250,7 @@ export function Reader() {
 
         <main className="pages-col">
           <div className="toolbar" role="toolbar" aria-label="필기 도구">
-            {([['view', '보기', '탭: 문항/필기 → 영상 이동'], ['pen', '펜', ''], ['highlighter', '형광펜', ''], ['eraser', '지우개', '획 단위']] as const).map(([t, label, tip]) => (
+            {([['view', '답 고르기', '번호를 누르면 채점 · 문항/필기를 누르면 그 영상 구간'], ['pen', '펜', ''], ['highlighter', '형광펜', ''], ['eraser', '지우개', '획 단위']] as const).map(([t, label, tip]) => (
               <button key={t} className={tool === t ? 'on' : ''} onClick={() => setTool(t)} title={tip}>{label}</button>
             ))}
             <span className="sep" />

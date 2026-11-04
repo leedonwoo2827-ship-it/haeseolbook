@@ -15,7 +15,7 @@ export function Library() {
     <div className="container">
       <section className="hero-sm">
         <h1>기출 원문 위에 쓰고, 문항별 해설 영상으로 바로</h1>
-        <p>9급 기술직 공무원 기출을 원문 그대로 보면서 펜으로 풀고, 문항을 누르면 그 문항의 유튜브 해설 구간이 재생됩니다. 모든 교재는 무료입니다.</p>
+        <p>9급 기술직 공무원 기출과 컴활 2급 필기 모의고사를 원문 그대로 보면서 펜으로 풀고, 문항을 누르면 그 문항의 유튜브 해설 구간이 재생됩니다. 모든 교재는 무료입니다.</p>
       </section>
 
       {err && <p className="notice">{err}</p>}
@@ -39,7 +39,7 @@ function BookCard({ b, loggedIn }: { b: BookItem; loggedIn: boolean }) {
   const to = loggedIn ? `/read/${b.id}` : `/login?next=${encodeURIComponent(`/read/${b.id}`)}`;
   return (
     <Link to={to} className="book">
-      <div className="book-cover">
+      <div className={`book-cover${b.exam.includes('컴퓨터활용능력') ? ' com' : ''}`}>
         <span className="exam">{b.exam}</span>
         <b>{b.subject}</b>
         <span>{b.year} · {b.round}</span>

@@ -91,9 +91,9 @@ test('pc: login → read → draw → grade → sync to tablet', async ({ browse
   await pc.page.locator('.splitter').dblclick();
   expect(Math.round(await sideW())).toBe(Math.round(1440 * 0.36));
 
-  // 보기 모드에서 문항 영역 탭 → 해당 문항 선택
+  // 답 고르기 모드에서 문항 영역 탭 → 해당 문항 선택
   await pc.page.getByRole('tab', { name: '문항·해설' }).click();
-  await pc.page.getByRole('button', { name: '보기', exact: true }).click();
+  await pc.page.getByRole('button', { name: '답 고르기', exact: true }).click();
   const box = (await pc.page.locator('.page canvas.live').first().boundingBox())!;
   await pc.page.mouse.click(box.x + box.width * 0.75, box.y + box.height * 0.48); // 오른쪽 단 아래 4번의 발문 줄 (보기 칸을 누르면 채점된다)
   await expect(pc.page.locator('.quiz-head b')).toHaveText('4번');

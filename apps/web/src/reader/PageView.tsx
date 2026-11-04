@@ -6,11 +6,14 @@ import { drawStrokes, hitStrokes, newStrokeId, type Tool } from './ink';
 export interface ChoiceResult { chosen: number; answer: number }
 
 /** 탭 판정: 누른 뒤 이만큼(0–1 좌표) 안 움직이고 이 시간 안에 떼면 탭 */
-const TAP_MOVE = 0.01;
-const TAP_MS = 350;
+const TAP_MOVE = 0.012;
+const TAP_MS = 900;   // 펜을 꾹 누르다 떼도 탭으로(제자리에 찍은 점은 필기가 아니다)
 /** 원숫자 위에 그린 작은 ✓·○ — 획의 가운데가 보기 칸 왼쪽 이 폭(0–1) 안, 획 크기가 이 이하 */
 const MARK_ZONE = 0.05;
 const MARK_MAX = 0.06;
+/** 원숫자 바로 왼쪽·위아래에 찍혀도 그 보기로 — 보기 칸은 원숫자 왼쪽 끝에서 시작한다 */
+const CHOICE_PAD_X = 0.025;
+const CHOICE_PAD_Y = 0.004;
 
 const inBox = (r: Region, x: number, y: number) =>
   x >= r.bbox.x && x <= r.bbox.x + r.bbox.w && y >= r.bbox.y && y <= r.bbox.y + r.bbox.h;
@@ -51,7 +54,9 @@ function PageViewImpl(p: PageViewProps) {
   /** 탭으로 채점했으면 뒤따르는 click(보기 모드 처리)을 한 번 건너뛴다 */
   const tapped = useRef(false);
   const choices = p.regions.filter((r) => r.kind === 'choice' && r.quizId && r.choiceNo);
-  const choiceAt = (x: number, y: number) => choices.find((r) => inBox(r, x, y));
+  const choiceAt = (x: number, y: number) =>
+    choices.find((r) => inBox(r, x, y)) ??
+    choices.find((r) => x >= r.bbox.x - CHOICE_PAD_X && x <= r.bbox.x + r.bbox.w && y >= r.bbox.y - CHOICE_PAD_Y && y <= r.bbox.y + r.bbox.h + CHOICE_PAD_Y);
   const aspect = p.page.height / p.page.width;
 
   useLayoutEffect(() => {
@@ -166,7 +171,7 @@ function PageViewImpl(p: PageViewProps) {
         // 원숫자 위에 작게 ✓·○ — 채점하고 필기로도 남긴다
         const cx = (Math.max(...xs) + Math.min(...xs)) / 2, cy = (Math.max(...ys) + Math.min(...ys)) / 2;
         const c = choiceAt(cx, cy);
-        if (c && cx <= c.bbox.x + MARK_ZONE) p.onChoiceTap(c.quizId!, c.choiceNo!);
+        if (c && cx >= c.bbox.x - CHOICE_PAD_X && cx <= c.bbox.x + MARK_ZONE) p.onChoiceTap(c.quizId!, c.choiceNo!);
       }
     }
     if (d.stroke) p.onChange(p.page.id, [...p.strokes, d.stroke], []);
