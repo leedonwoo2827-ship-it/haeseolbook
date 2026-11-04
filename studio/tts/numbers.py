@@ -4,7 +4,7 @@
   01회 → 일 회 (앞자리 0 은 읽지 않는다 — 「공일」 금지)
   -20을 → 마이너스 이십을          8비트 → 팔비트 · 16진수 → 십육진수
   00010100 → 영 영 영 일 영 일 영 영  (비트열은 한 자리씩 「영」「일」)
-  16진수 EC → 이 씨                ⊞+Shift+S → 윈도우 단축키와 시프트 그리고 S
+  16진수 EC → 이 씨                ⊞+Shift+S → 윈도우 키와 시프트 S
   Ctrl+C → 컨트롤 C                20을 · 2의 보수 → 이십을 · 이의 보수
 건드리지 않는 것: 1000원 · 3.5를 · 1,000을 · A1 · 3-2 · 3개(고유어 단위) · 일공공일(이미 한글)
 """
@@ -52,7 +52,7 @@ def _key(k: str) -> str:
 
 
 def _winkey(m: "re.Match[str]") -> str:
-    return "윈도우 단축키와 " + " 그리고 ".join(_key(k.strip()) for k in m.group(1).split("+") if k.strip())
+    return "윈도우 키와 " + " ".join(_key(k.strip()) for k in m.group(1).split("+") if k.strip())
 
 
 def _combo(m: "re.Match[str]") -> str:
