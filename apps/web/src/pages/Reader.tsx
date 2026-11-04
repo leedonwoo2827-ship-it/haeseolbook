@@ -7,7 +7,7 @@ import { loadManifest, saveManifest } from '../lib/db';
 import { InkSync } from '../lib/sync';
 import { useYouTube } from '../lib/youtube';
 import { HIGHLIGHT_COLORS, HIGHLIGHT_SIZE, PEN_COLORS, PEN_SIZES, type Tool } from '../reader/ink';
-import { PageView } from '../reader/PageView';
+import { PageView, type ChoiceResult } from '../reader/PageView';
 import { QuizPanel, type PanelTab } from '../reader/QuizPanel';
 
 interface HistoryOp { pageId: string; before: Stroke[]; after: Stroke[] }
@@ -196,6 +196,21 @@ export function Reader() {
     submitAttempt(bookId, quizId, chosen).catch(() => {}); // 오프라인이면 로컬 채점만
   };
 
+  /** 원문 보기 칸을 누르면: 채점 + 패널을 그 문항·해설로 (원문은 그 자리에 그대로 둔다) */
+  const onChoiceTap = (quizId: string, choiceNo: number) => {
+    void onAnswer(quizId, choiceNo);
+    setActiveQuizId(quizId);
+    setTab('quiz');
+  };
+  const results = useMemo(() => {
+    const out = new Map<string, ChoiceResult>();
+    for (const q of quizzes) {
+      const chosen = lastResult?.quizId === q.id ? lastResult.chosen : attempts.get(q.id)?.chosen;
+      if (chosen) out.set(q.id, { chosen, answer: q.answer });
+    }
+    return out;
+  }, [quizzes, attempts, lastResult]);
+
   const notes = useMemo(() => (sync?.allStrokes() ?? [])
     .filter((n) => n.stroke.videoTime !== null)
     .sort((a, b) => a.stroke.videoTime! - b.stroke.videoTime!)
@@ -274,6 +289,8 @@ export function Reader() {
                 onPenDetected={onPenDetected}
                 onChange={onChange}
                 onRegionTap={onRegionTap}
+                onChoiceTap={onChoiceTap}
+                results={results}
                 onStrokeTap={onStrokeTap}
                 scroller={scroller}
               />

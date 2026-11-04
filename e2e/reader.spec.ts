@@ -4,11 +4,11 @@ const SHOTS = process.env.SHOT_DIR;
 const IPAD_UA = 'Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
 const email = `e2e-${Date.now()}@test.kr`;
 
-async function login(page: Page) {
+async function login(page: Page, mail = email) {
   await page.goto('/');
   await page.getByText('샘플 전기이론 (시험용)').first().click();
   await expect(page).toHaveURL(/\/login/);
-  await page.getByPlaceholder('you@example.com').fill(email);
+  await page.getByPlaceholder('you@example.com').fill(mail);
   await page.getByRole('button', { name: '이메일로 로그인' }).click();
   await expect(page).toHaveURL(/\/read\/sample-electric/);
   await expect(page.locator('.page img').first()).toBeVisible();
@@ -95,7 +95,7 @@ test('pc: login → read → draw → grade → sync to tablet', async ({ browse
   await pc.page.getByRole('tab', { name: '문항·해설' }).click();
   await pc.page.getByRole('button', { name: '보기', exact: true }).click();
   const box = (await pc.page.locator('.page canvas.live').first().boundingBox())!;
-  await pc.page.mouse.click(box.x + box.width * 0.75, box.y + box.height * 0.6); // 오른쪽 단 아래 = 4번
+  await pc.page.mouse.click(box.x + box.width * 0.75, box.y + box.height * 0.48); // 오른쪽 단 아래 4번의 발문 줄 (보기 칸을 누르면 채점된다)
   await expect(pc.page.locator('.quiz-head b')).toHaveText('4번');
 
   // 태블릿(다른 기기 유형)에서 같은 계정 → 필기가 보인다
@@ -132,4 +132,32 @@ test('phone: offline drawing is kept and synced when back online', async ({ brow
   await phone.page.evaluate(() => window.dispatchEvent(new Event('online')));
   await expect(phone.page.locator('.sync')).toHaveText('저장됨', { timeout: 15_000 });
   await phone.ctx.close();
+});
+
+test('tablet: pen tap on a choice in the page grades it — no answer-pen mode', async ({ browser }) => {
+  const tab = await newDevice(browser, { viewport: { width: 1180, height: 820 } });
+  await login(tab.page, `e2e-tap-${Date.now()}@test.kr`);
+  await tab.page.getByRole('button', { name: '펜', exact: true }).click();
+
+  // 1번 문항 ① 칸(정답은 ②)을 펜으로 콕 — 채점되고 점은 필기로 남지 않는다
+  const box = tab.page.locator('.choice-box[data-quiz$="-q1"][data-choice="1"]');
+  await box.scrollIntoViewIfNeeded();
+  const b = (await box.boundingBox())!;
+  await tab.page.mouse.click(b.x + Math.min(12, b.width / 2), b.y + b.height / 2);
+  await expect(tab.page.locator('.verdict')).toHaveText(/오답 — 정답은 ②/);
+  await expect(tab.page.locator('.choice-mark.bad')).toHaveCount(1);
+  await expect(tab.page.locator('.choice-mark.ok')).toHaveCount(1);
+  expect(await inkPixels(tab.page)).toBe(0);
+
+  // 긴 필기는 채점하지 않는다
+  await drawZigzag(tab.page, 0.2, 0.32);
+  await expect(tab.page.locator('.choice-mark')).toHaveCount(2);
+
+  // ② 를 다시 누르면 정답
+  const ok = (await tab.page.locator('.choice-box[data-quiz$="-q1"][data-choice="2"]').boundingBox())!;
+  await tab.page.mouse.click(ok.x + Math.min(12, ok.width / 2), ok.y + ok.height / 2);
+  await expect(tab.page.locator('.verdict')).toHaveText('정답입니다');
+  await expect(tab.page.locator('.choice-mark.bad')).toHaveCount(0);
+  if (SHOTS) await tab.page.screenshot({ path: `${SHOTS}/tablet-tap.png` });
+  await tab.ctx.close();
 });

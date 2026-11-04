@@ -31,8 +31,10 @@ export type Page = z.infer<typeof Page>;
 export const Region = z.object({
   id: z.string(),
   pageId: z.string(),
-  kind: z.enum(['quiz', 'solution']),
+  kind: z.enum(['quiz', 'solution', 'choice']),
   quizId: z.string().nullable(),
+  /** kind='choice' 의 보기 번호(1–5) — 원문 위 이 칸을 누르면 그 보기로 채점한다 */
+  choiceNo: z.number().int().min(1).max(5).nullable().optional(),
   bbox: BBox,
 });
 export type Region = z.infer<typeof Region>;

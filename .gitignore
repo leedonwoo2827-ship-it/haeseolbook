@@ -42,3 +42,6 @@ __pycache__/
 *.pyc
 server/config.lan.php
 _plan/
+
+# 회사 한글 양식 (로컬 전용)
+tools/html2hwpx/form.hwpx

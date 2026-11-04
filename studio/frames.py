@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Tuple
 import pymupdf as fitz
 from PIL import Image, ImageDraw
 
-from . import boards
+from . import boards, profile
 from . import theme as T
 from .job import Job, read_json, write_json
 from .log import log
@@ -66,9 +66,10 @@ def run(job: Job, force: bool = False) -> List[Dict[str, Any]]:
         c_start = ch["start"]
         sch = script["chapters"][ci]
         if sch.get("kind") in ("intro", "outro"):
-            big, second = (f"{m['year']} {m['subject']}", f"{m['exam']} 기출 20문항 해설") if sch["kind"] == "intro" \
+            tx = profile.texts(m)
+            big, second = (tx["title_big"], tx["title_second"]) if sch["kind"] == "intro" \
                 else ("수고하셨습니다", "해설북에서 원문 위에 다시 풀어 보세요")
-            small = "원문: 인사혁신처 공개 기출 · 최종정답 기준" if sch["kind"] == "intro" else "문항을 누르면 이 영상의 해설 구간으로 바로 이동합니다"
+            small = tx["title_small"] if sch["kind"] == "intro" else "문항을 누르면 이 영상의 해설 구간으로 바로 이동합니다"
             seq.append((sv.save(["title", m, big, second, small], lambda: boards.title_frame(job, big, second, small)), c_start))
             continue
         no = sch["quiz"]
@@ -79,7 +80,8 @@ def run(job: Job, force: bool = False) -> List[Dict[str, Any]]:
         answer_scene = max(c["scene"] for c in q_cues)
         answer_t = scenes[answer_scene]["start"]
         base_key = ["q", job.id, no, sch["title"]]
-        base_img, geo = boards.frame(job, no, sch["title"])
+        lo, hi = m.get("range") or (1, 20)
+        base_img, geo = boards.frame(job, no, sch["title"], total=hi, first=lo)
         # 판서 위치 찾기
         placed = []
         for mk in marks:

@@ -294,6 +294,7 @@ final class Catalog
             'pages' => array_map(fn ($p) => ['id' => $p['id'], 'pageNo' => (int) $p['page_no'], 'width' => (float) $p['width'], 'height' => (float) $p['height']], $pages),
             'regions' => array_map(fn ($r) => [
                 'id' => $r['id'], 'pageId' => $r['page_id'], 'kind' => $r['kind'], 'quizId' => $r['quiz_id'],
+                'choiceNo' => isset($r['choice_no']) ? (int) $r['choice_no'] : null,
                 'bbox' => ['x' => (float) $r['x'], 'y' => (float) $r['y'], 'w' => (float) $r['w'], 'h' => (float) $r['h']],
             ], $regions),
             'quizzes' => array_map(fn ($q) => [

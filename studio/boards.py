@@ -45,7 +45,7 @@ def crop(job: Job, force: bool = False) -> Dict[str, Any]:
     for q in quizzes:
         no = q["no"]
         tiles, places, y = [], [], 0
-        for r in (r for r in regions if r.get("quizNo") == no):
+        for r in (r for r in regions if r.get("quizNo") == no and r.get("kind", "quiz") == "quiz"):   # 보기 칸(choice) 제외
             page = doc[r["pageNo"] - 1]
             pw, ph = page.rect.width, page.rect.height
             b = r["bbox"]
@@ -82,15 +82,15 @@ def _chrome(img: Image.Image, job: Job, page_txt: str, dark: bool = False) -> Im
 W, H = T.W, T.H
 
 
-def frame(job: Job, no: int, title: str, total: int = 20) -> Tuple[Image.Image, Dict[str, Any]]:
-    """문항 화면과 원문→화면 변환 정보 {s, ox, oy, places}"""
+def frame(job: Job, no: int, title: str, total: int = 20, first: int = 1) -> Tuple[Image.Image, Dict[str, Any]]:
+    """문항 화면과 원문→화면 변환 정보 {s, ox, oy, places}. 모의고사 2과목은 21~40번이라 first·total 로 범위를 준다"""
     info = read_json(job.boards / "boards.json")["questions"][str(no)]
     bg = T.BG_CYCLE[(no - 1) % len(T.BG_CYCLE)]
     img = T.paper(T.PALETTE[bg], seed=no)
     d = ImageDraw.Draw(img)
     # 장식: 왼쪽 아래 덩어리 · 카드 오른쪽 위 반짝이
     T.blob(d, -40, H + 10, 190, T.PALETTE["accent"] if no % 2 else T.PALETTE["mustard"], seed=no)
-    _chrome(img, job, f"{no:02d} / {total:02d}")
+    _chrome(img, job, f"{no:02d} / {total:02d}" if first == 1 else f"{no:02d}  ({first}~{total})")
     # 키커 + 제목 + 물결 밑줄
     topic = re.sub(r"^\s*\d+\s*번\s*[·:\-—]\s*", "", title or "").strip() or f"{no}번"
     fk = T.font(T.BOLD, 26)
@@ -199,7 +199,8 @@ def title_frame(job: Job, big: str, second: str, small: str = "") -> Image.Image
     if small:
         d.text((114, 610), small, font=T.font(T.SEMI, 32), fill=(214, 220, 235))
     fy = T.font(T.HEAVY, 260)
-    yr = str(job.meta["year"])
+    from .profile import texts
+    yr = texts(job.meta)["title_num"]
     d.text((1500 - d.textlength(yr, font=fy) / 2, 420), yr, font=fy, fill=T.PALETTE["deep"])
     T.sparkle(d, 1260, 250, 40, (255, 255, 255))
     T.sparkle(d, 1810, 820, 26, T.PALETTE["mustard"])

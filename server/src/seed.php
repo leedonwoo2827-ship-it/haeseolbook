@@ -127,9 +127,12 @@ function seed(string $dir): array
         }
         foreach ($regions as $i => $r) {
             $bbox = validate_bbox($r['bbox'] ?? null, "regions[{$i}]");
+            $kind = in_array($r['kind'] ?? '', ['solution', 'choice'], true) ? $r['kind'] : 'quiz';
+            $choice = $kind === 'choice' ? (int) ($r['choiceNo'] ?? 0) : null;
+            if ($kind === 'choice' && ($choice < 1 || $choice > 5 || !isset($r['quizNo']))) fail("regions[{$i}]: 보기 칸에는 quizNo 와 choiceNo(1–5)가 필요합니다");
             Db::insert('hsb_regions', [
-                'id' => "{$id}-r" . ($i + 1), 'page_id' => "{$id}-p{$r['pageNo']}", 'kind' => $r['kind'] === 'solution' ? 'solution' : 'quiz',
-                'quiz_id' => isset($r['quizNo']) ? "{$id}-q{$r['quizNo']}" : null,
+                'id' => "{$id}-r" . ($i + 1), 'page_id' => "{$id}-p{$r['pageNo']}", 'kind' => $kind,
+                'quiz_id' => isset($r['quizNo']) ? "{$id}-q{$r['quizNo']}" : null, 'choice_no' => $choice,
             ] + $bbox);
         }
         // 영상 연결은 패키지가 정본 — 이번 패키지에 없는 예전 영상 구간은 지운다

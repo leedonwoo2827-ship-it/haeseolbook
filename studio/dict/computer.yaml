@@ -1,0 +1,33 @@
+# 컴퓨터 일반(컴활 2급 1과목) 과목 발음 사전 — 공통 사전(studio/pronunciation.yaml)보다 이긴다. 표기: 소리 (합성 직전에만 바뀌고 자막은 그대로)
+# 2026-11-04 음성 체크에서 사용자가 고친 발음을 모았다.
+rules:
+  "Windows 11": "윈도우즈 십일"
+  "Windows 10": "윈도우즈 십"
+  Windows: 윈도우즈
+  Bluetooth: 블루투스
+  "Wi-Fi": 와이파이
+  Python: 파이썬
+  Byte: 바이트
+  Fetch: 페치
+  Ctrl: 컨트롤
+  Shift: 시프트
+  Alt: 알트
+  Enter: 엔터
+  Esc: 이에스씨
+  Tab: 탭
+  SRAM: 에스램
+  DRAM: 디램
+  EEPROM: 이이피롬
+  EPROM: 이피롬
+  PROM: 피롬
+  ROM: 롬
+  RAM: 램
+  BIOS: 바이오스
+  IPv4: 아이피브이포
+  IPv6: 아이피브이식스
+  DDoS: 디도스
+  ASCII: 아스키
+  EBCDIC: 엡시딕
+  IMAP: 아이맵
+  MIME: 마임
+  POP3: 팝쓰리

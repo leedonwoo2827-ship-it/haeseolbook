@@ -173,6 +173,15 @@ h1, h2, h3 { line-height: 1.3; letter-spacing: -0.01em; }
 .page-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .region { fill: transparent; stroke: transparent; stroke-width: 2; transition: fill .2s, stroke .2s; }
 .region.active { fill: rgba(37, 99, 235, 0.07); stroke: rgba(37, 99, 235, 0.55); }
+.choice-box { fill: transparent; stroke: none; }
+/* 원문 보기 채점 표시 — 원숫자 위에 정답 ○(초록), 고른 오답 ✕(빨강). 크기는 페이지 폭 비율 */
+.choice-mark {
+  position: absolute; width: 3.2%; aspect-ratio: 1; pointer-events: none; border-radius: 50%;
+  display: grid; place-items: center; font-weight: 800; line-height: 1; animation: mark-pop .32s ease-out;
+}
+.choice-mark.ok { box-shadow: 0 0 0 2.5px var(--ok); background: rgba(22, 163, 74, 0.08); }
+.choice-mark.bad { color: var(--bad); font-size: clamp(14px, 2.4vw, 26px); }
+@keyframes mark-pop { 0% { transform: scale(1.8); opacity: 0; } 100% { transform: none; opacity: 1; } }
 .cue-dot {
   position: absolute; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; pointer-events: none;
   background: rgba(220, 38, 38, 0.85); box-shadow: 0 0 0 6px rgba(220, 38, 38, 0.2); transition: left .25s linear, top .25s linear;

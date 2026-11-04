@@ -12,7 +12,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from . import claude
+from . import profile, claude
 from .job import Job, read_json, write_json
 from .log import log
 
@@ -20,9 +20,9 @@ CIRCLED = "①②③④⑤"
 MAX_SAY = 80
 WORKERS = 3
 
-PROMPT = """너는 9급 국가직 {subject} 시험 전문 강사다. 유튜브 해설 영상의 내레이션 대본과 이북용 해설을 쓴다.
+PROMPT = """너는 {role}다. 유튜브 해설 영상의 내레이션 대본과 이북용 해설을 쓴다.
 
-[문항] {year}년 {exam} {subject} {no}번 ({booklet}책형)
+[문항] {head}
 문항 이미지 파일: {image}
 → 먼저 Read 도구로 이 이미지를 열어 문항(그림·표·코드 포함)을 정확히 읽어라.
 참고용 추출 텍스트(띄어쓰기가 깨졌을 수 있음):
@@ -30,7 +30,7 @@ PROMPT = """너는 9급 국가직 {subject} 시험 전문 강사다. 유튜브 �
 {text}
 >>>
 
-[공식 최종정답] {answer_text}  ← 절대 바꾸지 말 것. 해설은 이 정답이 왜 맞는지, 나머지 보기가 왜 틀린지를 설명한다.
+[{basis}] {answer_text}  ← 절대 바꾸지 말 것. 해설은 이 정답이 왜 맞는지, 나머지 보기가 왜 틀린지를 설명한다.
 
 [출력] 아래 JSON 하나만 출력한다. 다른 말은 쓰지 않는다.
 {{
@@ -88,7 +88,8 @@ def _one(job: Job, q: Dict[str, Any], quiz: Dict[str, Any], force: bool) -> Dict
     m = job.meta
     ans = quiz["answers"]
     image = (job.boards / f"crop/q{no:02d}.png").resolve()
-    prompt = PROMPT.format(subject=m["subject"], year=m["year"], exam=m["exam"], booklet=m["booklet"], no=no,
+    tx = profile.texts(m)
+    prompt = PROMPT.format(role=tx["prompt_role"], head=tx["prompt_head"].format(no=no), basis=tx["prompt_basis"], no=no,
                            image=str(image).replace("\\", "/"), text=q["text"][:2500], answer_text=_answer_text(ans),
                            answer_mark=", ".join(CIRCLED[a - 1] for a in ans), max_say=MAX_SAY)
 
@@ -116,12 +117,11 @@ def _one(job: Job, q: Dict[str, Any], quiz: Dict[str, Any], force: bool) -> Dict
 
 def assemble(job: Job, items: Dict[int, Dict[str, Any]]) -> Dict[str, Any]:
     m = job.meta
-    year, subj, exam = m["year"], m["subject"], m["exam"]
+    tx = profile.texts(m)
     chapters: List[Dict[str, Any]] = [{
         "title": "시작", "kind": "intro",
         "scenes": [{"board": "intro", "lines": [
-            {"say": f"{year}년 {exam} {subj} 기출문제 스무 문항을 처음부터 끝까지 풀어 보겠습니다.",
-             "cap": f"{year} {exam} {subj} 기출 20문항"},
+            {"say": tx["intro_say"], "cap": tx["intro_cap"]},
             {"say": "문항마다 챕터가 나뉘어 있으니 필요한 문항으로 바로 이동해서 보세요.",
              "cap": "문항별 챕터로 바로 이동"},
         ]}],
@@ -139,7 +139,7 @@ def assemble(job: Job, items: Dict[int, Dict[str, Any]]) -> Dict[str, Any]:
     chapters.append({
         "title": "마무리", "kind": "outro",
         "scenes": [{"board": "outro", "lines": [
-            {"say": f"이것으로 {year}년 {subj} 스무 문항 해설을 마칩니다.", "cap": "20문항 해설 끝"},
+            {"say": tx["outro_say"], "cap": tx["outro_cap"]},
             {"say": "틀린 문항은 해설북에서 원문 위에 다시 풀어 보고, 해당 구간 영상으로 복습해 보세요.",
              "cap": "해설북에서 다시 풀고 복습하기"},
         ]}],
@@ -150,21 +150,24 @@ def assemble(job: Job, items: Dict[int, Dict[str, Any]]) -> Dict[str, Any]:
     return {
         "id": job.id, "title": m["title"], "chapters": chapters,
         "youtube": {
-            "title": f"{year} {exam} {subj} 기출 해설 | 20문항 전체 풀이 (문항별 챕터)",
-            "hook_lines": [f"{year}년 {exam} {subj} 20문항을 원문 그대로 보며 한 문항씩 풀이합니다.",
-                           "설명란 챕터로 원하는 문항부터 바로 보세요."],
-            "summary": ["정답은 인사혁신처 최종정답 기준입니다.",
+            "title": tx["yt_title"],
+            "hook_lines": [tx["yt_hook"], "설명란 챕터로 원하는 문항부터 바로 보세요."],
+            "summary": [tx["yt_basis"],
                         "해설북(이북)에서 원문 위에 필기하며 문항별 해설 구간을 바로 볼 수 있습니다."],
-            "tags": list(dict.fromkeys([f"{exam}", f"{subj}", f"{year} {subj}", "공무원 기출", "9급 전산직", "기출 해설", *kw[:12]])),
+            "tags": list(dict.fromkeys([*tx["tags"], *kw[:12]])),
         },
-        "thumbnail": {"line1": f"{year} {subj}", "line2": "기출 20문항 해설", "keyword": subj},
+        "thumbnail": {"line1": tx["thumb_line1"], "line2": tx["thumb_line2"], "keyword": m["subject"]},
     }
 
 
 def run(job: Job, force: bool = False, only: Optional[List[int]] = None) -> Dict[str, Any]:
-    if not claude.available():
-        raise RuntimeError("claude CLI 가 없습니다 — Claude Code 설치 후 `claude auth login`")
+    if job.setting("kind") == "mock":
+        force = False      # 모의고사 대본의 원본은 xam-local2(07/mNN/script) — 고치려면 거기서 다시 굽고 s0 --force
     questions = read_json(job.book / "questions.json", [])
+    # 모의고사는 xam-local2 가 대본(script/qNN.json)을 이미 만들어 둔다 — 모두 있으면 Claude 없이 조립만
+    have_all = all((job.scripts / f"q{q['no']:02d}.json").exists() for q in questions)
+    if not (have_all and not force) and not claude.available():
+        raise RuntimeError("claude CLI 가 없습니다 — Claude Code 설치 후 `claude auth login`")
     quizzes = {q["no"]: q for q in read_json(job.book / "quizzes.json", [])}
     if not (job.boards / "boards.json").exists():
         raise RuntimeError("문항 크롭이 없습니다 — 원문 준비(s0)를 먼저 실행하세요")

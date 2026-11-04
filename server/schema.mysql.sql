@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS hsb_regions (
   page_id  VARCHAR(80) NOT NULL,
   kind     VARCHAR(10) NOT NULL,
   quiz_id  VARCHAR(80) NULL,
+  choice_no INT NULL,                  -- kind='choice' 일 때 보기 번호(1–5): 원문 위 그 칸을 누르면 그 보기로 채점
   x DOUBLE NOT NULL, y DOUBLE NOT NULL, w DOUBLE NOT NULL, h DOUBLE NOT NULL,
   KEY idx_regions_page (page_id),
   CONSTRAINT fk_regions_page FOREIGN KEY (page_id) REFERENCES hsb_pages(id) ON DELETE CASCADE

@@ -1,4 +1,4 @@
-"""검수용: 페이지 이미지 위에 문항 영역(regions.json)과 포인터 트랙(video_map.json cues)을 그려 PNG 로 저장
+"""검수용: 페이지 이미지 위에 문항 영역·보기 칸(regions.json)과 포인터 트랙(video_map.json cues)을 그려 PNG 로 저장
 
   python -I tools/pipeline/preview.py content/build/2025-g9-electric
   → content/build/2025-g9-electric/_preview/<n>.png
@@ -28,7 +28,12 @@ def main() -> None:
         W, H = img.size
         for r in (r for r in regions if r["pageNo"] == p["pageNo"]):
             b = r["bbox"]
-            d.rectangle([b["x"] * W, b["y"] * H, (b["x"] + b["w"]) * W, (b["y"] + b["h"]) * H], outline=(37, 99, 235), width=3)
+            box = [b["x"] * W, b["y"] * H, (b["x"] + b["w"]) * W, (b["y"] + b["h"]) * H]
+            if r.get("kind") == "choice":            # 보기 칸(누르면 채점) — 초록
+                d.rectangle(box, outline=(22, 163, 74), width=2)
+                d.text((box[2] - 14, box[1] + 1), str(r["choiceNo"]), fill=(22, 163, 74))
+                continue
+            d.rectangle(box, outline=(37, 99, 235), width=3)
             d.text((b["x"] * W + 4, b["y"] * H + 2), f"Q{r['quizNo']}", fill=(37, 99, 235))
         for v in video_map:
             pts = [(c["x"] * W, c["y"] * H) for c in v.get("cues", []) if c["pageNo"] == p["pageNo"]]

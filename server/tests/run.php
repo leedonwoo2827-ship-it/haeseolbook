@@ -124,7 +124,11 @@ check('books (anonymous)', $s === 200 && count($books) === 1 && $books[0]['owned
 [$s] = call('GET', '/books/sample-electric/manifest');
 check('manifest requires login', $s === 401);
 [$s, $m] = call('GET', '/books/sample-electric/manifest', null, $tok);
-check('manifest', $s === 200 && count($m['pages']) === 2 && count($m['quizzes']) === 8 && count($m['regions']) === 8, $s);
+$quizRegions = array_filter($m['regions'] ?? [], fn ($r) => $r['kind'] === 'quiz');
+$choiceRegions = array_filter($m['regions'] ?? [], fn ($r) => $r['kind'] === 'choice' && $r['choiceNo'] >= 1);
+// 문항 영역은 단·페이지를 넘으면 조각이 둘 이상이다 — 문항 수로 센다. 보기 칸은 8문항 × 4
+check('manifest', $s === 200 && count($m['pages']) === 2 && count($m['quizzes']) === 8
+    && count(array_unique(array_column($quizRegions, 'quizId'))) === 8 && count($choiceRegions) === 32, $s);
 check('manifest video segments + cues', count($m['videoSegments']) === 8 && count($m['videoSegments'][0]['cues']) === 4);
 check('manifest solutions', count($m['solutions']) === 8 && str_contains($m['solutions'][0]['markdown'], '정답'));
 [, $books] = call('GET', '/books', null, $tok);

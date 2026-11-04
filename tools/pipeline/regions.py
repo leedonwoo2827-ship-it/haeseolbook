@@ -11,6 +11,8 @@
 
 산출물(사람이 검수 후 확정):
   regions.json   [{pageNo, kind:"quiz", quizNo, bbox:{x,y,w,h}}]   (0–1 정규화)
+                 + [{pageNo, kind:"choice", quizNo, choiceNo, bbox}]  보기 ①②③④ 자리 — 리더에서 펜·손가락으로
+                   한 번 누르면 그 보기로 채점한다. 보기가 한 줄에 여럿(① a ② b)이어도 칸을 나눈다.
   questions.json [{no, pageNo, text}]   (해설 생성 explain.py 입력)
   quizzes.json   [{no, answer, choiceCount}]   (--answers 지정 시. 정답표 {"1":3,"2":1,...})
 
@@ -28,7 +30,9 @@ import fitz
 
 # 문항 번호 앵커: "1.", "12)", "문 3.", "1000." (번호가 이어지는 문제집 대비 4자리까지)
 ANCHOR = re.compile(r"^\s*(?:문\s*)?(\d{1,4})\s*[.)](?:\s|$)")  # "문  6." 처럼 번호만 있는 줄도 (2022)
-CHOICE = re.compile(r"[①②③④⑤]")
+CIRCLED = "①②③④⑤"
+CHOICE = re.compile(f"[{CIRCLED}]")
+ANCHOR_INDENT = 12.0  # pt — 문항 번호 줄이 단 왼쪽 끝에서 이만큼까지 들여써져도 앵커로 본다
 MARGIN = 0.006  # bbox 여유 (페이지 비율)
 HEADER, FOOTER = 0.035, 0.985  # 머리말("○○ 가책형 1쪽") 띠만 제외. 국가직 B4 시험지는 본문이 위아래 3% 까지 찬다
 
@@ -125,8 +129,11 @@ def find_quizzes(doc: fitz.Document, columns: int | None, first: int = 1) -> tup
                     pending = line
                     continue
                 m = ANCHOR.match(line.text)
-                # 번호가 순서대로 증가할 때만 앵커로 인정 (보기 안의 "1." 같은 오탐 방지)
-                if m and int(m.group(1)) == expected:
+                # 번호가 순서대로 증가할 때만 앵커로 인정 (보기 안의 "1." 같은 오탐 방지).
+                # 또 단 왼쪽 끝에서 시작하는 줄만 — 지문 속 들여쓴 「1. … 2. …」 목록이 다음 문항으로 잡히지 않게.
+                # 「문」 혼자 있는 줄 뒤의 번호 줄은 「문」 폭만큼 밀려 있으므로 이 검사를 건너뛴다.
+                at_left = pending is not None or line.x0 - line.cx0 <= ANCHOR_INDENT
+                if m and int(m.group(1)) == expected and at_left:
                     current = Quiz(expected, [[]])
                     quizzes.append(current)
                     expected += 1
@@ -138,6 +145,23 @@ def find_quizzes(doc: fitz.Document, columns: int | None, first: int = 1) -> tup
                     current.parts[-1].append(line)
     for q in quizzes:
         q.parts = [p for p in q.parts if p]
+    # 단·쪽 머리의 한 줄짜리 조각 바로 아래에서 다음 문항이 시작하면, 그 줄은 이어지는 본문이 아니라
+    # 과목 제목·쪽 머리말이다(「스프레드시트 일반」, 「○○ 2쪽」) — 앞 문항 영역에서 뺀다
+    starts: dict[tuple[int, int], list[Line]] = {}
+    for q in quizzes:
+        if q.parts:
+            first = q.parts[0][0]
+            starts.setdefault((first.page, first.col), []).append(first)
+    for q in quizzes:
+        keep = q.parts[:1]
+        for part in q.parts[1:]:
+            line = part[0]
+            below = [s for s in starts.get((line.page, line.col), []) if s.y0 >= line.y1]
+            gap = min((s.y0 - line.y1 for s in below), default=None)
+            if len(part) == 1 and gap is not None and gap <= (line.y1 - line.y0) * 4:
+                continue
+            keep.append(part)
+        q.parts = keep
     return quizzes, layout
 
 
@@ -159,6 +183,53 @@ def to_regions(doc: fitz.Document, quizzes: list[Quiz]) -> list[dict]:
     return regions
 
 
+def choice_regions(doc: fitz.Document, quizzes: list[Quiz]) -> list[dict]:
+    """문항 조각 안에서 보기 원문자 글리프를 찾아 보기마다 누를 칸을 만든다.
+
+    발문에 「①과 ②」처럼 원문자가 먼저 나올 수 있으므로 번호마다 **마지막** 글리프를 쓰고,
+    ①→②→③ 순서가 어긋나면(아래로·오른쪽으로 가지 않으면) 그 보기는 건너뛴다(채점은 패널 버튼으로 된다).
+    """
+    out: list[dict] = []
+    for q in quizzes:
+        hits = []                                # [(n, part, rect)]
+        for n, g in enumerate(CIRCLED, start=1):
+            best = None
+            for part in q.parts:
+                page = doc[part[0].page - 1]
+                clip = fitz.Rect(part[0].cx0 - 2, min(l.y0 for l in part) - 2, part[0].cx1 + 2, max(l.y1 for l in part) + 2)
+                for r in page.search_for(g, clip=clip):
+                    best = (n, part, r)
+            if best:
+                hits.append(best)
+        hits = [h for i, h in enumerate(hits) if h[0] == i + 1]           # ① 부터 빈틈없이
+        ok = []
+        for h in hits:
+            if ok:
+                (_, pp, pr), (_, cp, cr) = ok[-1], h
+                same = pp is cp
+                if same and not (cr.y0 > pr.y0 + 1 or (abs(cr.y0 - pr.y0) <= 1 and cr.x0 > pr.x1)):
+                    break
+            ok.append(h)
+        for i, (n, part, r) in enumerate(ok):
+            page = doc[part[0].page - 1]
+            pw, ph = page.rect.width, page.rect.height
+            nxt = ok[i + 1] if i + 1 < len(ok) and ok[i + 1][1] is part else None
+            line_h = r.y1 - r.y0
+            if nxt and abs(nxt[2].y0 - r.y0) <= line_h * 0.5:          # 같은 줄의 다음 보기 앞까지
+                x1, y1 = nxt[2].x0 - 2, max(l.y1 for l in part if abs(l.y0 - r.y0) <= line_h) + 1
+            else:
+                x1 = part[0].cx1
+                below = [l for l in part if l.y0 >= r.y0 - line_h * 0.5 and (not nxt or l.y0 < nxt[2].y0 - line_h * 0.5)]
+                y1 = max([l.y1 for l in below] + [r.y1]) + 1
+            x0, y0 = r.x0 - 3, r.y0 - 2
+            out.append({
+                "pageNo": part[0].page, "kind": "choice", "quizNo": q.no, "choiceNo": n,
+                "bbox": {"x": round(max(0.0, x0 / pw), 4), "y": round(max(0.0, y0 / ph), 4),
+                         "w": round((x1 - x0) / pw, 4), "h": round((y1 - y0) / ph, 4)},
+            })
+    return out
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("pdf", type=Path)
@@ -174,6 +245,8 @@ def main() -> None:
     if not quizzes:
         raise SystemExit("문항 번호를 찾지 못했습니다. 스캔 PDF라면 OCR 후 다시 실행하세요 (--columns 도 확인).")
     regions = to_regions(doc, quizzes)
+    choices = choice_regions(doc, quizzes)
+    regions += choices
     questions = [{
         "no": q.no, "pageNo": q.parts[0][0].page,
         "text": "\n".join(l.text for part in q.parts for l in part),
@@ -194,7 +267,10 @@ def main() -> None:
         } for i, q in enumerate(quizzes)]
         (a.out / "quizzes.json").write_text(json.dumps(qz, ensure_ascii=False, indent=1), encoding="utf-8")
 
-    print(f"{len(quizzes)} quizzes, {len(regions)} regions → {a.out}")
+    print(f"{len(quizzes)} quizzes, {len(regions) - len(choices)} regions, {len(choices)} choices → {a.out}")
+    short = [q.no for q in quizzes if sum(1 for c in choices if c["quizNo"] == q.no) < 4]
+    if short:
+        print(f"참고: 보기 칸이 4개 미만인 문항 {short} · 그 문항은 패널 버튼으로 채점된다")
     print("pages: " + " ".join(f"{p}쪽={c}단" for p, c in layout.items()))
     found = [q.no for q in quizzes]
     gaps = [n for n in range(found[0], found[-1] + 1) if n not in found]

@@ -156,6 +156,24 @@ final class Db
             $sql = preg_replace('/UNIQUE KEY \w+ \(/', 'UNIQUE (', $sql);
         }
         foreach (array_filter(array_map('trim', explode(';', $sql))) as $stmt) self::pdo()->exec($stmt);
+        // CREATE TABLE IF NOT EXISTS 는 이미 있는 표에 칼럼을 더하지 않는다 — 나중에 생긴 칼럼은 여기서 채운다
+        foreach (self::ADDED_COLUMNS as [$table, $col, $type]) {
+            if (!self::hasColumn($table, $col)) self::pdo()->exec("ALTER TABLE {$table} ADD COLUMN {$col} {$type}");
+        }
+    }
+
+    /** 스키마에 나중에 더한 칼럼 [표, 칼럼, 타입] (schema.mysql.sql 의 CREATE 문에도 같이 적는다) */
+    private const ADDED_COLUMNS = [
+        ['hsb_regions', 'choice_no', 'INT NULL'],
+    ];
+
+    private static function hasColumn(string $table, string $col): bool
+    {
+        if (self::isSqlite()) {
+            foreach (self::pdo()->query("PRAGMA table_info({$table})")->fetchAll(\PDO::FETCH_ASSOC) as $c) if ($c['name'] === $col) return true;
+            return false;
+        }
+        return (bool) self::pdo()->query("SHOW COLUMNS FROM {$table} LIKE " . self::pdo()->quote($col))->fetch();
     }
 }
 

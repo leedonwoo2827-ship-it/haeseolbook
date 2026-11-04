@@ -20,6 +20,16 @@ nav button.on{background:#fff;color:var(--hd)}
 .stopbar button:disabled{opacity:.5;cursor:default}
 .stopbar .run{font-size:13px;opacity:.9}
 main{padding:18px;max-width:1700px;margin:0 auto}
+/* 순서 안내 — 한 줄 흐름 + 이 과목의 규칙 한 줄. 다음에 할 단계는 진하게 */
+.guide{background:#eaf3fc;border:1px solid #cfe1f5;border-radius:12px;padding:10px 16px;margin-bottom:14px;font-size:14px}
+.guide .flow{display:flex;flex-wrap:wrap;align-items:center;gap:4px 2px}
+.guide .flow>b{margin-right:8px}
+.guide .g{border:0;background:none;font:inherit;font-size:14px;color:#3a4f66;padding:2px 6px;border-radius:7px;cursor:pointer}
+.guide .g:hover{background:#d8e8f8}
+.guide .g.done{color:var(--ok)}.guide .g.done::after{content:' ✓'}
+.guide .g.next{background:var(--navy);color:#fff;font-weight:700}
+.guide .ar{color:#8aa3bd}
+.guide .note{color:var(--sub);font-size:13px;margin-top:3px}
 .tiles{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px}@media(max-width:1000px){.tiles{grid-template-columns:repeat(3,1fr)}}
 .tile{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 18px}.tile small{color:var(--sub)}.tile b{display:block;font-size:30px;margin-top:4px}.tile em{font-style:normal;color:var(--sub);font-size:13px}
 .panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
@@ -48,7 +58,7 @@ video,img.pv{width:100%;border-radius:10px;border:1px solid var(--line);backgrou
 .tag{font-size:12px;color:var(--sub);align-self:center}
 a{color:#1f5fbf}
 .chap{columns:3;font-size:13px}
-/* ⑤ 음성 체크 — 왼쪽 줄 목록 | 오른쪽 발음 사전(⇥ 로 접고, 좁은 창에서는 오른쪽에서 밀려 나온다) */
+/* ④ 음성 체크 — 왼쪽 줄 목록 | 오른쪽 발음 사전(⇥ 로 접고, 좁은 창에서는 오른쪽에서 밀려 나온다) */
 .vc{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:16px;align-items:start}.vc.closed{grid-template-columns:minmax(0,1fr)}.vc.closed .vdict{display:none}
 .vnums{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}.vnums button{font:inherit;font-size:13px;min-width:36px;border:1px solid var(--line);background:#f5f6f8;border-radius:7px;padding:4px 7px;cursor:pointer}
 .vnums button.ok{background:var(--okbg);color:var(--ok);border-color:#bfe3c9}.vnums button.half{background:var(--warnbg);color:var(--warn)}.vnums button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
@@ -57,7 +67,11 @@ a{color:#1f5fbf}
 .vl .vh{display:flex;gap:6px;align-items:center;margin-bottom:6px}.vl .vh b{font:12px Consolas,monospace;background:#eef1f5;border-radius:5px;padding:1px 6px}
 .v2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.v2 small{display:block;color:var(--sub);font-size:12px;margin-bottom:2px}
 .vsay{background:#f6f7f9;border-radius:7px;padding:6px 8px;font-size:14px;min-height:58px}.vcap{color:var(--sub);font-size:12.5px;margin-top:4px}
-.vtts{width:100%;font:inherit;font-size:14px;border:1px solid #cfd6e0;border-radius:7px;padding:6px 8px;min-height:58px;resize:vertical}
+.vtts{width:100%;font:inherit;font-size:14px;border:2px solid #f0b27a;background:#fffaf4;border-radius:7px;padding:6px 8px;min-height:58px;resize:vertical}
+.vlab{display:flex;gap:6px;align-items:center;font-size:12.5px;font-weight:700;margin-bottom:3px}.vlab em{font-style:normal;font-weight:400;color:var(--sub)}
+.vlab.cap{color:#3d5a80}.vlab.tts{color:#c0601a}
+.vcapbox{background:#eef3f9;border:1px solid #d5e1ee;border-radius:7px;padding:6px 8px;font-size:14px;min-height:58px;white-space:pre-line}
+.vorig{color:var(--sub);font-size:12.5px;margin-top:4px}
 .vbtn{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}.vbtn audio{height:32px;flex:1;min-width:220px}
 .vsug{margin-top:8px;background:#fff8e8;border:1px solid #f0d79a;border-radius:8px;padding:8px 10px;font-size:14px}.vsug del{color:var(--bad)}.vsug ins{color:var(--bad);font-weight:700;text-decoration:none;background:#fde8e6}
 mark.left{background:#fde8e6;color:var(--bad)}
@@ -76,10 +90,11 @@ mark.left{background:#fde8e6;color:var(--bad)}
   <h1>해설북 · 스튜디오</h1>
   <select id="subject"></select>
   <div class="st" id="tools"></div>
-  <nav><button data-tab="src">① 원문</button><button data-tab="make" class="on">② 만들기</button><button data-tab="view">③ 결과 보기</button><button data-tab="post">④ 올리기</button><button data-tab="voice">⑤ 음성 체크</button></nav>
-  <div class="stopbar"><button id="stop">■ 멈춤</button><span class="run" id="runinfo"></span><span style="flex:1"></span><a href="http://127.0.0.1:8080/" target="_blank" style="color:#fff">로컬 해설북 열기 ↗</a></div>
+  <nav><button data-tab="src">① 원문</button><button data-tab="make" class="on">② 만들기</button><button data-tab="view">③ 결과 보기</button><button data-tab="voice">④ 음성 체크</button><button data-tab="post">⑤ 올리기</button></nav>
+  <div class="stopbar"><button id="stop">■ 멈춤</button><span class="run" id="runinfo"></span><span style="flex:1"></span><a href="#" id="ebook" style="color:#fff" title="완성작(이북 리더)을 5301 포트에 띄워 엽니다">로컬 해설북 열기 ↗</a></div>
 </header>
 <main>
+  <div class="guide" id="guide"></div>
   <div class="tiles" id="tiles"></div>
   <div id="waitbox"></div>
   <section id="tab-make" class="panel">
@@ -91,13 +106,26 @@ mark.left{background:#fde8e6;color:var(--bad)}
       <button class="b" data-st="s0,s1,s2">▶ 0→2</button><button class="b teal" data-st="s3,s4,s5">▶ 3→5</button><button class="b navy" data-st="s0,s1,s2,s3,s4,s5">▶ 0→5</button>
       <label class="right"><input type="checkbox" id="force"> 이미 된 것 다시</label>
     </div>
-    <table><thead><tr><th><input type="checkbox" id="all"></th><th>회차</th><th>시행일</th><th>원문</th><th>대본</th><th>판서</th><th>음성</th><th>화면</th><th>영상</th><th>업로드</th><th>이북</th></tr></thead><tbody id="rows"></tbody></table>
+    <table><thead><tr><th><input type="checkbox" id="all"></th><th>회차</th><th id="datehead">시행일</th><th>원문</th><th>대본</th><th>판서</th><th>음성</th><th>화면</th><th>영상</th><th>업로드</th><th>이북</th></tr></thead><tbody id="rows"></tbody></table>
+    <p class="guide" id="makenote" hidden style="margin:8px 0">📘 <b>교재 한글:</b> xam-local2에서 문제 PDF가 완료되면 <a href="#" data-go="src">① 원문</a> 탭의 「<b>hwpx 생성</b>」을 누르세요. 영상을 유튜브에 올린 뒤 한 번 더 누르면 정답·해설편에 과목별 QR이 찍힙니다.</p>
     <p class="muted">대본·판서는 Claude(구독)를 씁니다. 한도에 걸리면 재설정 시각까지 기다렸다 멈춘 문항부터 이어서 합니다. 끝난 문항·문장·화면은 다시 만들지 않습니다.</p>
   </section>
   <section id="tab-src" class="panel" hidden>
     <h3 style="margin-top:0">원문 (<code>_assets</code>)</h3>
-    <table><thead><tr><th>회차</th><th>시행일</th><th>문제지</th><th>작업</th></tr></thead><tbody id="srcrows"></tbody></table>
-    <p class="muted">새 연도는 <code>_assets/&lt;연도&gt;/</code> 에 문제 PDF와 최종정답 PDF를 넣고 <code>_assets/index.json</code> 에 추가합니다.</p>
+    <div class="guide" id="hwpxbar" hidden style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 10px">
+      <button class="b navy" id="hwpxgo">📘 hwpx 생성</button><a id="bookdl" hidden download>⬇ 교재 한 권(1~5회 문제+해설)</a>
+      <span>교재 회차의 <b>문제편</b>(회차별)·<b>정답·해설편</b>·<b>교재 한 권</b>(문제+해설)을 한글로 만듭니다.
+        xam-local2에서 문제 PDF를 구운 뒤, 영상을 올린 뒤(QR) 누르세요. 진행은 아래 기록 창.</span>
+    </div>
+    <div class="row" id="dlbar" hidden style="gap:8px;align-items:center;margin:0 0 8px">
+      <b>고른 회차 모아 받기</b><span class="muted" id="dlinfo">(아직 안 골랐어요)</span>
+      <label class="muted"><input type="checkbox" id="dlpdf"> PDF도 함께</label>
+      <button class="b" id="dlgo" disabled>⬇ zip으로 받기</button>
+      <button class="b" id="dlfolder" title="mNN\exam.hwpx = 문제편, _textbook\answers_*.hwpx = 정답·해설편">📂 한글 폴더 열기</button>
+      <span class="muted">교재 회차의 한글 문제편·정답해설편 — 같은 회차의 두 과목·해설편은 한 번만 담깁니다 (이북 회차는 e-test 사이트가 직접 가져갑니다)</span>
+    </div>
+    <table><thead><tr><th id="dlhead"></th><th>회차</th><th id="srcdatehead">시행일</th><th>문제지</th><th>작업</th></tr></thead><tbody id="srcrows"></tbody></table>
+    <p class="muted" id="srcnote">새 연도는 <code>_assets/&lt;연도&gt;/</code> 에 문제 PDF와 최종정답 PDF를 넣고 <code>_assets/index.json</code> 에 추가합니다.</p>
   </section>
   <section id="tab-view" class="panel" hidden><div id="view"><p class="muted">② 만들기 표에서 회차 이름을 누르세요.</p></div></section>
   <section id="tab-post" class="panel" hidden>
@@ -125,20 +153,43 @@ let O=null, sel=new Set(), subject='컴퓨터일반', viewId=null;
 try{subject=localStorage.getItem('hsb.subject')||subject}catch{}
 async function api(p,o={}){const r=await fetch(p,{headers:{'Content-Type':'application/json'},...o});if(!r.ok){let t=await r.text();try{t=JSON.parse(t).detail||t}catch{};throw new Error(t)}return r.json()}
 const chip=(ok,txt,cls)=>`<span class="c ${ok?(cls||'ok'):'no'}">${esc(txt)}</span>`;
-function label(r){return `${r.year} ${esc(r.booklet)}책형`}
+// 모의고사: 교재/이북 + 누르면 그 파일이 한글·브라우저로 열림 (그 밖의 시리즈는 시행일)
+const dsel=new Set();   // 원문 탭 「모아 받기」로 고른 회차(작업 id)
+function destCell(r){
+  if(!r.dest)return esc(r.examDate||'');
+  return `${chip(true,r.dest,r.dest==='교재'?'ok':'warn')} `+(r.files||[]).map(k=>`<a href="#" data-open="${esc(k)}" data-id="${esc(r.id)}">${esc(k)}</a>`).join(' · ');
+}
+function label(r){return r.label?esc(r.label):`${r.year} ${esc(r.booklet)}책형`}
+/* 상단 순서 — [이름, 누르면 갈 탭, 끝난 수(없으면 완료 표시 안 함)] · 아직 다 안 된 첫 단계를 「다음」으로 */
+function renderGuide(T){
+  const mock=O.rows.some(r=>r.label), n=T.rounds;
+  const steps=[['① 원문 확인','src',O.rows.filter(r=>r.s0).length],['② 0 원문·정답 · 1 대본','make',T.script],
+    ['⑤ 이북 미리 게시(영상 없이)','post',T.preview],['2 판서','make',T.marks],
+    ['3 목소리','make',T.voice],['4 화면 · 5 영상','make',T.video],['③ 결과 보기','view',null],['④ 음성 체크','voice',null],
+    ['⑤ 유튜브 업로드','post',T.posted],['⑤ 이북에 영상 연결','post',T.linked]];
+  const next=steps.findIndex(s=>s[2]!==null&&s[2]<n);
+  $('#guide').innerHTML=`<div class="flow"><b>순서</b>${steps.map((s,i)=>`${i?'<span class="ar">→</span>':''}<button class="g ${s[2]!==null&&n&&s[2]>=n?'done':''} ${i===next?'next':''}" data-go="${s[1]}">${s[0]}${s[2]!==null&&n&&s[2]<n&&s[2]>0?` ${s[2]}/${n}`:''}</button>`).join('')}</div>
+    <div class="note">${mock
+      ?`${esc(subject)} · 회차×과목 20문항 = 영상 1편·이북 1권 · 대본은 xam-local2 원고 그대로(1 대본은 조립만, 2 판서부터 Claude) · 이북 미리 게시는 ⑤ 올리기의 「이북 연동」(업로드 전이면 교재만)`
+      :`${esc(subject)} 기출 · 회차 = 영상 1편·이북 1권 · 1 대본·2 판서는 Claude · 정답은 인사혁신처 최종정답 기준`}</div>`;
+  $('#srcnote').innerHTML=mock?'모의고사 시험지는 xam-local2 「이북 시험지」가 굽는 <code>07/&lt;mNN&gt;/</code> 를 씁니다. 새 회차는 거기서 굽고 <code>run.bat new-mock …</code> 으로 추가합니다.'
+    :'새 연도는 <code>_assets/&lt;연도&gt;/</code> 에 문제 PDF와 최종정답 PDF를 넣고 <code>_assets/index.json</code> 에 추가합니다.';
+}
 async function load(){
   O=await api('/api/overview?subject='+encodeURIComponent(subject));
   $('#subject').innerHTML=O.subjects.map(s=>`<option ${s===subject?'selected':''}>${esc(s)}</option>`).join('');
   const t=O.tools;$('#tools').innerHTML=[['claude','Claude'],['supertonic','SuperTonic3'],['ffmpeg','ffmpeg'],['php','PHP'],['chrome_profile','유튜브 로그인 프로필']].map(([k,n])=>`<span class="${t[k]?'':'no'}">${n}</span>`).join('');
   const A=await api('/api/accounts');if(document.activeElement!==$('#acc'))$('#acc').innerHTML=A.accounts.map(a=>`<option value="${esc(a.name)}" ${a.name===A.current?'selected':''}>채널: ${esc(a.label)}</option>`).join('');
   const T=O.totals;
+  renderGuide(T);
   $('#tiles').innerHTML=[['회차',T.rounds],['대본',T.script],['판서',T.marks],['음성',T.voice],['영상',T.video,`총 ${T.minutes}분`],['업로드',T.posted,`이북 연동 ${T.linked}`]].map(([a,b,c])=>`<div class="tile"><small>${a}</small><b>${b}</b>${c?`<em>${c}</em>`:''}</div>`).join('');
   $('#runinfo').textContent=O.running?`▶ 실행 중: ${O.running}`:'';
   $('#stop').disabled=!O.running;
   const w=O.rows.find(r=>r.waiting);
   $('#waitbox').innerHTML=w?`<div class="wait">⏸ Claude 사용 한도 — <b>${esc(w.waiting.until)}</b> 에 자동으로 이어서 합니다 (${label(w)} · ${esc(w.waiting.no)}번까지 저장됨). 창을 켜 두세요.</div>`:'';
+  $('#datehead').textContent=O.rows.some(r=>r.dest)?'교재/이북':'시행일';
   $('#rows').innerHTML=O.rows.map(r=>`<tr><td><input type="checkbox" data-k="${esc(r.key)}" ${sel.has(r.key)?'checked':''}></td>
-    <td>${r.exists?`<a href="#" data-view="${esc(r.id)}">${label(r)}</a>`:label(r)}</td><td class="muted">${esc(r.examDate||'')}</td>
+    <td>${r.exists?`<a href="#" data-view="${esc(r.id)}">${label(r)}</a>`:label(r)}</td><td class="muted">${destCell(r)}</td>
     <td>${chip(r.s0,r.s0?'완료':'—')}</td>
     <td>${r.exists?chip(r.script===20,`${r.script||0}/20`,r.script===20?'ok':'warn'):chip(false,'—')}</td>
     <td>${r.marksDone?chip(true,`${r.marks}개`):chip(false,'—')}</td>
@@ -147,7 +198,13 @@ async function load(){
     <td>${r.video?chip(true,`완성 ${r.mb||''}MB`):chip(false,'—')}</td>
     <td>${r.posted?`<a href="${esc(r.posted.url)}" target="_blank">${(r.posted.visibility==='scheduled'?'예약 '+(r.posted.scheduled_for||'').slice(5):{unlisted:'일부공개',public:'공개',private:'비공개'}[r.posted.visibility]||'올림')}</a>`:'<span class="c no">—</span>'}</td>
     <td>${r.linked?chip(true,'연동'):r.preview?chip(true,'미리보기','warn'):chip(false,'—')}</td></tr>`).join('');
-  $('#srcrows').innerHTML=O.rows.map(r=>`<tr><td>${label(r)}</td><td class="muted">${esc(r.examDate||'')}</td><td>${r.exists?`<a href="/api/jobs/${esc(r.id)}/file/paper" target="_blank">문제 PDF</a>`:'<span class="muted">작업을 만들면 열람</span>'}</td><td>${r.exists?chip(true,r.id):'<span class="muted">0 원문을 돌리면 생깁니다</span>'}</td></tr>`).join('');
+  $('#srcdatehead').textContent=$('#datehead').textContent;
+  const mk=O.rows.some(r=>r.dest);$('#dlbar').hidden=!mk;$('#makenote').hidden=!mk;
+  $('#hwpxbar').hidden=!mk;$('#hwpxbar').style.display=mk?'flex':'none';$('#hwpxgo').disabled=!!O.running;
+  {const t=O.rows.find(r=>(r.files||[]).includes('교재 한권'));$('#bookdl').hidden=!t;if(t)$('#bookdl').href=`/api/mock/file/${t.id}/${encodeURIComponent('교재 한권')}`}
+  $('#dlhead').innerHTML=mk?'<input type="checkbox" id="dlall">':'';
+  $('#dlinfo').textContent=dsel.size?`${dsel.size}개 골랐어요`:'(아직 안 골랐어요)';$('#dlgo').disabled=!dsel.size;
+  $('#srcrows').innerHTML=O.rows.map(r=>`<tr><td>${r.dest==='교재'?`<input type="checkbox" data-d="${esc(r.id)}" ${dsel.has(r.id)?'checked':''}>`:''}</td><td>${label(r)}</td><td class="muted">${destCell(r)}</td><td>${r.exists?`<a href="/api/jobs/${esc(r.id)}/file/paper" target="_blank">문제 PDF</a>`:'<span class="muted">작업을 만들면 열람</span>'}${(r.files||[]).filter(k=>k.endsWith('한글')).map(k=>` · <a href="/api/mock/file/${esc(r.id)}/${encodeURIComponent(k)}" download>⬇ ${esc(k)}</a>`).join('')}</td><td>${r.exists?chip(true,r.id):'<span class="muted">0 원문을 돌리면 생깁니다</span>'}</td></tr>`).join('');
   $('#postrows').innerHTML=O.rows.filter(r=>r.video).map(r=>`<tr><td><label><input type="checkbox" data-k="${esc(r.key)}" ${sel.has(r.key)?'checked':''}> ${label(r)}</label></td><td>${chip(true,`${r.minutes}분`)}</td>
     <td>${r.posted?`<a href="${esc(r.posted.url)}" target="_blank">${esc(r.posted.url)}</a> <span class="muted">${esc(r.posted.channel||r.posted.account||'')}</span> `:''}<span class="row" style="display:inline-flex;gap:4px"><input class="purl" data-id="${esc(r.id)}" placeholder="직접 올렸으면 유튜브 주소 붙여넣기" style="width:250px"><button class="b" data-purl="${esc(r.id)}">저장</button></span></td><td>${r.linked?chip(true,'연동'):r.preview?chip(true,'미리보기','warn'):chip(false,'—')}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">완성된 영상이 아직 없습니다.</td></tr>';
   const n=sel.size; const info=n?`(${n}개: ${[...sel].map(k=>k.replace('|',' ')).join(', ')})`:'(아직 안 골랐어요)';
@@ -161,14 +218,25 @@ document.addEventListener('change',e=>{
   if(e.target.classList.contains('dv')){const r=e.target.closest('[data-dk]');dictPut({k:r.dataset.dk,v:e.target.value,src:r.dataset.src==='기본'?'공통':r.dataset.src});return}
   if(e.target.classList.contains('vok')){vCheck(e.target.closest('.vl').dataset.id,e.target.checked);return}
   if(e.target.id==='subject'){subject=e.target.value;try{localStorage.setItem('hsb.subject',subject)}catch{};sel.clear();load()}
+  if(e.target.id==='dlall'){O.rows.filter(r=>r.dest==='교재').forEach(r=>e.target.checked?dsel.add(r.id):dsel.delete(r.id));load();return}
+  if(e.target.dataset.d){e.target.checked?dsel.add(e.target.dataset.d):dsel.delete(e.target.dataset.d);load();return}
   if(e.target.id==='all'){O.rows.forEach(r=>e.target.checked?sel.add(r.key):sel.delete(r.key));load()}
   if(e.target.dataset.k){e.target.checked?sel.add(e.target.dataset.k):sel.delete(e.target.dataset.k);load()}
 });
 document.addEventListener('click',async e=>{
+  const go=e.target.closest('[data-go]');
+  if(go){document.querySelector(`nav button[data-tab="${go.dataset.go}"]`)?.click();return}
   const nb=e.target.closest('nav button');
   if(nb){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b===nb));['src','make','view','post','voice'].forEach(t=>$('#tab-'+t).hidden=t!==nb.dataset.tab);if(nb.dataset.tab==='voice')loadVoice();return}
   const sb=e.target.closest('button[data-st]');
   if(sb){try{await api('/api/run',{method:'POST',body:JSON.stringify({items:[...sel].sort(),stages:sb.dataset.st.split(','),subject,force:$('#force').checked,visibility:$('#vis').value,account:$('#acc').value})});load()}catch(x){alert(x.message)}return}
+  if(e.target.id==='hwpxgo'){try{await api('/api/mock/hwpx',{method:'POST',body:JSON.stringify({subject})});load()}catch(x){alert(x.message)}return}
+  if(e.target.id==='dlfolder'){try{await api('/api/mock/folder',{method:'POST',body:JSON.stringify({subject})})}catch(x){alert(x.message)}return}
+  if(e.target.id==='dlgo'){location.href=`/api/mock/bundle?ids=${encodeURIComponent([...dsel].sort().join(','))}&pdf=${$('#dlpdf').checked?1:0}`;return}
+  if(e.target.id==='ebook'){e.preventDefault();const w=window.open('about:blank','_blank');
+    try{const r=await api('/api/ebook/open',{method:'POST'});w.location=`${location.protocol}//${location.hostname}:${r.port}/`}catch(x){w&&w.close();alert(x.message)}return}
+  const of=e.target.closest('a[data-open]');
+  if(of){e.preventDefault();try{await api('/api/mock/open',{method:'POST',body:JSON.stringify({id:of.dataset.id,kind:of.dataset.open})})}catch(x){alert(x.message)}return}
   if(e.target.id==='stop'){if(confirm('지금 하던 단계를 멈출까요? (끝난 문항·문장은 저장돼 있어 다시 실행하면 이어서 합니다)')){await api('/api/stop',{method:'POST'});load()}return}
   if(e.target.id==='login'){await api('/api/login',{method:'POST',body:JSON.stringify({account:$('#acc').value})});return}
   if(e.target.id==='openpanel'){await api('/api/panel/open',{method:'POST'});return}
@@ -178,7 +246,7 @@ document.addEventListener('click',async e=>{
   const v=e.target.closest('a[data-view]');
   if(v){e.preventDefault();viewId=v.dataset.view;document.querySelector('nav button[data-tab=view]').click();showView();return}
   const s=e.target.closest('button[data-save]');
-  if(s){const box=s.closest('.quiz');const lines={read:[],solve:[],answer:[]};box.querySelectorAll('.line').forEach(l=>lines[l.dataset.k].push({say:l.querySelector('.say').value,cap:l.querySelector('.cap').value}));
+  if(s){const box=s.closest('.quiz');const lines={read:[],solve:[],answer:[]};box.querySelectorAll('.line[data-k]').forEach(l=>lines[l.dataset.k].push({say:l.querySelector('.say').value,cap:l.querySelector('.cap').value}));
     await api(`/api/jobs/${viewId}/quiz/${box.dataset.no}`,{method:'PUT',body:JSON.stringify({lines})});s.textContent='저장됨 — 3→5 다시 돌리면 반영';setTimeout(()=>s.textContent='저장',2500)}
 });
 async function showView(){
@@ -190,12 +258,14 @@ async function showView(){
   <div>${d.hasThumb?`<img class="pv" src="/api/jobs/${d.id}/file/thumb?ts=${Date.now()}">`:''}<p><b>${esc(d.youtube.title||'')}</b></p>
     ${d.posted?`<p>유튜브: <a href="${esc(d.posted.url)}" target="_blank">${esc(d.posted.url)}</a></p>`:''}
     <p><a href="/api/jobs/${d.id}/file/contact?no=1" target="_blank">모아보기(검수용) 1</a> · <a href="/api/jobs/${d.id}/file/contact?no=2" target="_blank">2</a> · <a href="/api/jobs/${d.id}/file/contact?no=3" target="_blank">3</a></p></div></div>
+  <div class="guide" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">🎧 <b>문장마다 듣고 발음 고치기</b>(자막 · 발음 · 재생 · AI 발음 교정 · 발음대로 다시 합성)는 <button class="b teal" data-go="voice">④ 음성 체크</button> 탭에서 이 회차로 합니다.</div>
   <h3>문항별 대본 · 판서</h3><p class="muted">고친 뒤 「저장」 → ② 만들기에서 그 회차를 골라 「▶ 3→5」 (바뀐 문장만 다시 만듭니다). 대본 자체를 새로 쓰려면 「1 대본」+「이미 된 것 다시」.</p>
   ${d.quizzes.map(q=>`<div class="quiz" data-no="${q.no}"><div class="bar" style="margin:0 0 4px"><h3>${q.no}. ${esc(q.title)}</h3><span class="c warn">정답 ${esc((q.answers||[]).join(', '))}</span><span class="muted">판서 ${q.marks}개</span>
     <a href="/api/jobs/${d.id}/file/frame?no=${q.no}" target="_blank">판서 화면 보기</a><span style="flex:1"></span><button class="b" data-save="${q.no}">저장</button></div>
+    <div class="line lhead"><span class="tag"></span><div class="vlab tts">🔊 대본 <em>목소리가 읽는 문장</em></div><div class="vlab cap">📺 자막 <em>화면에 보이는 글 · 줄바꿈 그대로</em></div></div>
     ${['read','solve','answer'].map(k=>q.lines[k].map((l,i)=>`<div class="line" data-k="${k}"><span class="tag">${{read:'소개',solve:'풀이',answer:'정답'}[k]} ${i+1}</span><textarea class="say">${esc(l.say)}</textarea><textarea class="cap">${esc(l.cap)}</textarea></div>`).join('')).join('')}</div>`).join('')}`;
 }
-// ── ⑤ 음성 체크 ───────────────────────────────────────────
+// ── ④ 음성 체크 ───────────────────────────────────────────
 let V=null, vch=0, D=null, vdictOpen=innerWidth>=1100;   // 좁은 창에서는 사전이 덮개라 닫아 둔다
 try{const v=localStorage.getItem('hsb.vdict');if(v&&innerWidth>=1100)vdictOpen=v==='1'}catch{}
 const LEFT=/[A-Za-z0-9²³√∑Σ≤≥≠×÷±∞π^%=<>+*\/]/;
@@ -220,8 +290,9 @@ function vCount(){
 function vCard(l){
   const tag=[l.edited&&chip(true,'발음 고침','warn'),l.stale&&chip(true,'대본 바뀜 — 고친 발음 무시됨','bad'),l.left&&chip(true,'영문·숫자·기호 남음','bad'),!l.wav&&chip(false,'합성 전')].filter(Boolean).join('');
   return `<div class="vl" data-id="${l.id}"><div class="vh"><b>${l.id}</b>${tag}<span style="flex:1"></span><label><input type="checkbox" class="vok" ${l.ok?'checked':''}> 확인</label></div>
-  <div class="v2"><div><small>대본 (원래 문장 · 영문·숫자·기호는 빨강)</small><div class="vsay">${markLeft(l.say)}</div><div class="vcap">자막: ${esc(l.cap)}</div></div>
-    <div><small>발음 (TTS 입력 · 실제로 읽는 글)</small><textarea class="vtts">${esc(l.tts)}</textarea></div></div>
+  <div class="v2"><div><div class="vlab cap">📺 자막 <em>화면에 보이는 글 · 여기서는 안 바뀜</em></div><div class="vcapbox">${esc(l.cap)}</div>
+      <div class="vorig">대본 원문: ${markLeft(l.say)} <span class="muted">(영문·숫자·기호 빨강)</span></div></div>
+    <div><div class="vlab tts">🔊 낭독 <em>목소리가 실제로 읽는 발음 · 여기를 고치세요</em></div><textarea class="vtts">${esc(l.tts)}</textarea></div></div>
   <div class="vbtn">${l.wav?`<audio controls preload="none" src="/api/jobs/${viewId}/voice/wav?id=${l.id}&t=${Date.now()}"></audio>`:'<span class="muted" style="flex:1">아직 합성하지 않았습니다</span>'}
     <button class="b" data-va="ai">AI 발음 교정</button><button class="b" data-va="auto" title="사전대로 다시(고친 것 되돌리기)">대본에서 발음 만들기</button><button class="b teal" data-va="synth">발음대로 다시 합성</button></div><div class="vsug" hidden></div></div>`;
 }
@@ -229,7 +300,7 @@ function renderVoice(){
   const c=V.chapters[vch];
   $('#vmain').innerHTML=`<div class="vnums">${V.chapters.map((x,i)=>`<button data-ch="${i}" title="${esc(x.title)}">${esc(chName(x))}</button>`).join('')}</div>
   <div class="bar" style="margin:4px 0"><b>${vch+1} / ${V.chapters.length}</b><span class="muted">${esc(c.title)} · ${c.lines.length}줄</span><span style="flex:1"></span>
-    <button class="b" data-vall="ai">이 장 전부 AI 발음 교정</button><button class="b" data-vnav="-1">이전</button><button class="b" data-vnav="1">다음</button></div>
+    <button class="b teal" data-vall="ai" title="AI 교정 제안을 바로 적용하고, 합성 안 된 줄까지 모두 합성합니다 — 듣고 확인만 하세요">이 장 전부 AI 교정 + 합성</button><button class="b" data-vnav="-1">이전</button><button class="b" data-vnav="1">다음</button></div>
   ${c.quiz?`<div class="vhead"><img src="/api/jobs/${viewId}/file/frame?no=${c.quiz}" alt="" data-zoom><p class="muted">문항 화면 — 수식·코드가 어떻게 생겼는지 보며 발음을 고치세요. 사전(오른쪽)에 넣으면 이 과목 모든 회차에, 줄에서 고치면 이 줄에만 적용됩니다.</p></div>`:''}
   ${c.lines.map(vCard).join('')}`;
   vCount();
@@ -242,11 +313,23 @@ function diffRed(a,b){
   while(i<n||j<m){if(i<n&&j<m&&x[i]===y[j]){out.push(esc(y[j]));i++;j++}else if(j<m&&(i>=n||L[i][j+1]>=L[i+1][j])){out.push(`<ins>${esc(y[j])}</ins>`);j++}else{out.push(`<del>${esc(x[i])}</del>`);i++}}
   return out.join(' ');
 }
-async function vSave(id,tts,synth){
+async function vSave(id,tts,synth,play=true){
   const r=await api(`/api/jobs/${viewId}/voice/line`,{method:'POST',body:JSON.stringify({id,tts,synth})});
   const l=vLine(id);Object.assign(l,{ok:l.ok&&l.tts===r.tts,tts:r.tts,edited:r.edited,wav:r.wav,stale:false,left:LEFT.test(r.tts)});
   vReplace(l);
-  if(synth)document.querySelector(`.vl[data-id="${id}"] audio`)?.play();
+  if(synth&&play)document.querySelector(`.vl[data-id="${id}"] audio`)?.play();
+}
+// 이 장 전부: AI 교정 → 제안을 바로 적용 → 모든 줄 합성(바뀐 줄 + 아직 합성 안 된 줄). 사용자는 듣고 확인만.
+async function vAIAll(ids,btn){
+  const tts={};ids.forEach(id=>{tts[id]=document.querySelector(`.vl[data-id="${id}"] .vtts`)?.value||vLine(id).tts});
+  const t=btn.textContent;btn.disabled=true;btn.textContent='AI 교정 중…';
+  try{const r=await api(`/api/jobs/${viewId}/voice/ai`,{method:'POST',body:JSON.stringify({ids,tts})});
+    let n=0,k=0;
+    for(const id of ids){const s=r.suggest[id],l=vLine(id),put=(s&&s!==tts[id])?s:tts[id];k++;
+      btn.textContent=`합성 중 ${k}/${ids.length}`;
+      if(put!==l.tts||!l.wav){await vSave(id,put,true,false);if(put!==tts[id])n++}}
+    btn.textContent=`${n}줄 고침 · 합성 끝`;setTimeout(()=>btn.textContent=t,4000)}
+  catch(x){alert(x.message);btn.textContent=t}finally{btn.disabled=false}
 }
 async function vCheck(id,ok){
   const l=vLine(id),ta=document.querySelector(`.vl[data-id="${id}"] .vtts`);
@@ -266,7 +349,7 @@ async function vAI(ids,btn){
 async function voiceClick(e){
   const ch=e.target.closest('.vnums button[data-ch]');if(ch){vch=+ch.dataset.ch;renderVoice();return true}
   const nv=e.target.closest('button[data-vnav]');if(nv){vch=Math.max(0,Math.min(V.chapters.length-1,vch+(+nv.dataset.vnav)));renderVoice();window.scrollTo(0,$('#tab-voice').offsetTop);return true}
-  const all=e.target.closest('button[data-vall]');if(all){vAI(V.chapters[vch].lines.map(l=>l.id),all);return true}
+  const all=e.target.closest('button[data-vall]');if(all){vAIAll(V.chapters[vch].lines.map(l=>l.id),all);return true}
   if(e.target.matches('img[data-zoom]')){window.open(e.target.src,'_blank');return true}
   const a=e.target.closest('button[data-va]');
   if(a){const card=a.closest('.vl'),id=card.dataset.id,ta=card.querySelector('.vtts'),act=a.dataset.va;
@@ -306,7 +389,7 @@ function renderDict(){
   if(keep==='dq'){const i=$('#dq');i.focus();i.setSelectionRange(i.value.length,i.value.length)}
 }
 async function dictPut(b){
-  try{await api('/api/dict',{method:'POST',body:JSON.stringify({subject,...b})});await loadVoice()}catch(x){alert(x.message)}
+  try{await api('/api/dict',{method:'POST',body:JSON.stringify({subject,job:viewId,...b})});await loadVoice()}catch(x){alert(x.message)}
 }
 setInterval(()=>{if(!document.querySelector('textarea:focus,select:focus,input.purl:focus')&&!document.querySelector('input.purl')?.value)load()},3000);
 setInterval(logTick,2000);

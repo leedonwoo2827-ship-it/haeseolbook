@@ -18,7 +18,7 @@ from .job import Job, read_json
 from .log import log
 
 FPS, CRF = 30, 20
-CAP_SIZE, CAP_MARGIN, MAX_LINE = 54, 70, 30
+CAP_SIZE, CAP_MARGIN, MAX_LINE = 54, 28, 30      # MarginV = 화면 아래에서 자막 아랫줄까지(px) — 판서 카드에 닿지 않게 낮게
 
 
 def ffmpeg() -> str:
@@ -86,7 +86,7 @@ def run(job: Job, force: bool = False) -> Path:
     if not frames:
         raise RuntimeError("frames.json 이 없습니다 — 화면(s4)을 먼저 실행하세요")
     import hashlib, json as _json
-    stamp = f"{timing['hash']}|{FPS}|{CRF}|{CAP_SIZE}|" + hashlib.sha1(_json.dumps(frames).encode()).hexdigest()[:12]
+    stamp = f"{timing['hash']}|{FPS}|{CRF}|{CAP_SIZE}|{CAP_MARGIN}|" + hashlib.sha1(_json.dumps(frames).encode()).hexdigest()[:12]
     if job.video.exists() and (work / "stamp.txt").exists() and (work / "stamp.txt").read_text() == stamp and not force:
         log("s5 영상: 바뀐 것 없음 — 건너뜀")
         return job.video

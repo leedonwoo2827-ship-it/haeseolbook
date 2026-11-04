@@ -74,8 +74,11 @@ def pmap_for(subject: Optional[str] = None):
 
 
 def spoken(text: str, subject: Optional[str] = None) -> str:
-    """실제로 읽는 소리 — 사전 + 모르는 영문 약어 철자 + 연도·단위 숫자"""
-    return pmap_for(subject).apply(text, spell_unknown_acronyms=True, convert_years=True)
+    """실제로 읽는 소리 — 수식·셀 주소(formula.py) → 사전 + 모르는 영문 약어 철자 + 연도·단위 숫자"""
+    from .formula import speak
+    from .numbers import speak_numbers                     # 01회·-20·비트열·16진수·⊞ 키 조합(studio/tts/numbers.py)
+    sheet = bool(subject) and "스프레드시트" in subject       # 맨 셀 주소(D3)는 시트 과목에서만 읽는다
+    return pmap_for(subject).apply(speak_numbers(speak(text, sheet=sheet)), spell_unknown_acronyms=True, convert_years=True)
 
 
 def missing() -> List[str]:

@@ -90,6 +90,16 @@ def doctor() -> int:
 def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(prog="studio", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd")
+    p = sub.add_parser("new-mock", help="자사 모의고사 시리즈 등록 + 회차×과목 작업 만들기")
+    p.add_argument("--book", required=True, help="교재 폴더 (07/<mNN>/ 이 있는 곳) 예: D:\\00work\\ocr-ouput-261030-com2")
+    p.add_argument("--code", required=True, help="영소문자·숫자 (작업 id 앞머리) 예: com2")
+    p.add_argument("--name", required=True, help="대시보드 시리즈 이름 예: 컴활 2급 모의고사")
+    p.add_argument("--exam", default="컴퓨터활용능력 2급 필기")
+    p.add_argument("--short", default="컴활 2급")
+    p.add_argument("--year", type=int, default=0)
+    p.add_argument("--rounds", required=True, help="예: 1-10")
+    p.add_argument("--textbook", default="", help="교재(인쇄·한글)에 싣는 회차 예: 1-5 — 나머지는 이북(e-test)")
+    p.add_argument("--public", default="", help="유튜브 공개 회차 — 비우면 모두 일부공개(링크로만)")
     p = sub.add_parser("new")
     p.add_argument("--year", type=int, required=True)
     p.add_argument("--subject", default="컴퓨터일반")
@@ -135,15 +145,29 @@ def main(argv: Optional[List[str]] = None) -> int:
     p = sub.add_parser("export-aside", help="완성 영상을 롱폼 공방 작업 폴더로 내보내기(공방에서 업로드)")
     p.add_argument("--job", required=True)
     p.add_argument("--to", help="롱폼 공방 폴더 (기본: 환경변수 HSB_ASIDE_DIR 또는 D:\00work\261011-롱폼 세계사)")
+    p = sub.add_parser("hwpx", help="교재 회차 한글(HWPX) — 문제편·정답해설편·교재 한 권 (xam-local2 변환기)")
+    p.add_argument("--code", required=True, help="모의고사 시리즈 코드 (예: com2)")
     p = sub.add_parser("login")
     p.add_argument("--account")
     for name in ("tts-setup", "doctor", "ui"):
         sub.add_parser(name)
     a = ap.parse_args(argv)
 
-    from .job import Job, create
+    from .job import Job, create, resolve
     try:
-        if a.cmd == "new":
+        if a.cmd == "new-mock":
+            from .job import create_mock, mock_parts, save_mock_series
+            rounds, public = _years(a.rounds), (_years(a.public) if a.public else [])
+            textbook = _years(a.textbook) if a.textbook else []
+            save_mock_series({"code": a.code, "name": a.name, "exam": a.exam, "short": a.short, "year": a.year,
+                              "book": a.book, "rounds": rounds, "textbook": textbook, "public": public})
+            from pathlib import Path as _P
+            for n in rounds:
+                rc = f"m{n:02d}"
+                for pinfo in mock_parts(_P(a.book), rc):
+                    j = create_mock(a.code, rc, pinfo["part"])
+                    log(f"작업: {j.id}  {j.meta['title']}  ({pinfo['range'][0]}~{pinfo['range'][1]}번 · {j.meta['dest']} · {j.meta['visibility']})")
+        elif a.cmd == "new":
             j = create(a.year, a.subject, booklet=a.booklet)
             log(f"작업: {j.id}  ({j.paper.name})")
         elif a.cmd == "make":
@@ -177,9 +201,8 @@ def main(argv: Optional[List[str]] = None) -> int:
             from .schedule import parse_when
             failed = []
             for item in [x for x in a.items.split(",") if x]:
-                year, _, booklet = item.partition("|")
                 try:
-                    j = create(int(year), a.subject, booklet=booklet or None)
+                    j = resolve(item, a.subject)
                     for st in stages:
                         if st in STAGES:
                             run_stage(j, st, a.force)
@@ -220,6 +243,14 @@ def main(argv: Optional[List[str]] = None) -> int:
             from .tts import engine
             engine.download(log)
             log("SuperTonic3 준비 완료" if not engine.missing() else f"누락: {engine.missing()}")
+        elif a.cmd == "hwpx":
+            from .job import mock_series
+            from . import hwpx
+            to_file(ROOT / "logs" / "studio.log")
+            series = next((e for e in mock_series() if e["code"] == a.code), None)
+            if not series:
+                raise ValueError(f"_assets/mocks.json 에 {a.code} 시리즈가 없습니다")
+            hwpx.run(series)
         elif a.cmd == "doctor":
             return doctor()
         elif a.cmd == "ui":
@@ -242,7 +273,7 @@ def plan(a) -> int:
     """고른 회차를 패턴의 빈 칸에 차례로 배치 → --apply 면 한 편씩 예약 공개로 올리고 이북 연동"""
     import json as _json, os as _os, time as _time
     from . import accounts, link, schedule
-    from .job import create
+    from .job import resolve
     to_file(ROOT / "logs" / "studio.log")
     items = [x for x in a.items.split(",") if x]
     acc = accounts.get(a.account)
@@ -250,7 +281,7 @@ def plan(a) -> int:
     pairs = list(zip(items, when))
     log(f"예약 계획 · 채널 {acc['label']} · {schedule.PATTERNS.get(a.pattern, {}).get('label', a.pattern)}")
     for it, w in pairs:
-        log(f"  {f'{w:%Y-%m-%d (%a) %H:%M}' if w else '지금 · ' + a.visibility}  {it.replace('|', ' ')}책형")
+        log(f"  {f'{w:%Y-%m-%d (%a) %H:%M}' if w else '지금 · ' + a.visibility}  {it.replace('|', ' ') + '책형' if '|' in it else it}")
     if not a.apply:
         return 0
     lock = ROOT / "logs" / "queue.json"
@@ -259,9 +290,8 @@ def plan(a) -> int:
     failed = []
     try:
         for it, w in pairs:
-            year, _, booklet = it.partition("|")
             try:
-                j = create(int(year), a.subject, booklet=booklet or None)
+                j = resolve(it, a.subject)
                 post(j, a.visibility, account=acc["name"], when=w)
                 link.run(j)
                 to_file(ROOT / "logs" / "studio.log")
@@ -291,9 +321,13 @@ def post(job, visibility: str = "unlisted", dry_run: bool = False, force: bool =
     if not job.video.exists():
         raise RuntimeError("영상이 없습니다 — make 를 먼저")
     acc = accounts.get(account)
+    if job.setting("kind") == "mock" and not when:
+        # 모의고사는 회차마다 정해 둔 공개 범위를 따른다 — 교재 회차는 공개(QR), 이북 회차는 일부공개
+        visibility = job.setting("visibility", visibility)
     log(f"── {job.id} · s6 유튜브 업로드 ({f'예약 {when:%m-%d %H:%M}' if when else visibility}) · 계정 {acc['label']}")
     chapters = chapter_lines(read_json(job.audio / "timing.json"))
-    playlist = job.setting("playlist") or f"{job.meta['exam']} {job.meta['subject']} 기출 해설"
+    from .profile import texts
+    playlist = job.setting("playlist") or texts(job.meta)["playlist"]
     log(f"  재생목록: {playlist}")
     rec = youtube.upload(job.script(), job.video, chapters=chapters, thumb=job.thumb, visibility=visibility,
                          dry_run=dry_run, playlist=playlist, account=acc["name"], when=when)
@@ -304,3 +338,7 @@ def post(job, visibility: str = "unlisted", dry_run: bool = False, force: bool =
             log(f"  올라간 채널: {ch}  ← 맞는 채널인지 확인하세요")
         job.update_state(posted=rec)
         job.mark("s6", url=rec.get("url"))
+        from .job import record_mock_video
+        vp = record_mock_video(job, rec.get("url"))
+        if vp:
+            log(f"  교재 QR 주소 기록: {vp} — xam-local2 「교재 정답·해설편」을 다시 만들면 QR 이 찍힙니다")
