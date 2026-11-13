@@ -50,6 +50,8 @@ def run_stage(job, stage: str, force: bool = False, only: Optional[List[int]] = 
     elif stage == "s5":
         render.run(job, force)
         thumb.run(job, force)
+        from . import review_pack                    # 집 노트북 검수용 html + 드라이브 복사(실패해도 영상은 그대로)
+        review_pack.safe_make(job)
 
 
 def make(job, force: bool = False) -> None:

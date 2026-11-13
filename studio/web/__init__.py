@@ -485,6 +485,18 @@ def create_app():
         from .. import voicecheck
         return vc(voicecheck.review_put, job_or_404(job_id), list(body.get("marks") or []))
 
+    @app.post("/api/jobs/{job_id}/review/pack")
+    def review_pack_make(job_id: str):
+        """집 노트북 검수용 html 을 (다시) 만들고 드라이브로 mp4 와 함께 복사"""
+        from .. import review_pack
+        return vc(review_pack.make, job_or_404(job_id))
+
+    @app.post("/api/jobs/{job_id}/review/import")
+    def review_pack_import(job_id: str, body: Dict[str, Any] = Body(default={})):
+        """집에서 저장한 검수표 json 을 합친다 — body 에 data 가 없으면 드라이브 회차 폴더의 최신 파일"""
+        from .. import review_pack
+        return vc(review_pack.import_result, job_or_404(job_id), body.get("data"))
+
     @app.get("/api/jobs/{job_id}/voice/wav")
     def voice_wav(job_id: str, id: str):
         from .. import voicecheck

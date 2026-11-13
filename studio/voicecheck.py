@@ -105,7 +105,16 @@ def review_get(job: Job) -> List[Dict[str, Any]]:
 
 
 def review_put(job: Job, marks: List[Dict[str, Any]]) -> Dict[str, Any]:
-    clean = [{"id": str(m["id"]), "t": round(float(m.get("t", 0)), 1)} for m in marks if re.fullmatch(r"L\d{3,4}", str(m.get("id", "")))]
+    """검수표 저장 — {id, t} + 집 노트북 검수 HTML 에서 적어 온 say(이렇게 읽기)·note(메모)"""
+    clean = []
+    for m in marks:
+        if not re.fullmatch(r"L\d{3,4}", str(m.get("id", ""))):
+            continue
+        e = {"id": str(m["id"]), "t": round(float(m.get("t", 0)), 1)}
+        for k in ("say", "note"):
+            if str(m.get(k) or "").strip():
+                e[k] = str(m[k]).strip()
+        clean.append(e)
     write_json(job.scripts / "review_marks.json", {"marks": clean})
     return {"ok": True, "marks": clean}
 

@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>영상 검수</title>
+<!-- 해설북 스튜디오가 5 영상 때 만드는 검수 파일(studio/review_pack.py). 같은 폴더의 mp4 를 재생하고, 표시한 줄을 검수표 json 으로 저장한다. 서버 없이 연다. -->
+<style>
+:root{--hd:#1f4e79;--bg:#f2f4f7;--card:#fff;--ink:#1b2430;--sub:#6b7686;--line:#e3e7ee;--warnbg:#fff1d6;--teal:#127566;--navy:#1f3c6e;--mark:#fff4d6}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 'Pretendard Variable',Pretendard,system-ui,'Malgun Gothic',sans-serif}
+header{background:var(--hd);color:#fff;padding:12px 18px;display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center}
+header h1{margin:0;font-size:19px}header .sub{opacity:.8;font-size:13px}
+main{padding:14px 18px;max-width:1500px;margin:0 auto}
+.wrap{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:14px;align-items:start}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+video{width:100%;border-radius:8px;background:#000;display:block}
+.now{margin-top:8px;font-size:15px}.now b,.id{font:12px Consolas,monospace;background:#eef1f5;border-radius:5px;padding:1px 6px;margin-right:6px}
+.keys{font-size:12.5px;color:var(--sub);margin-top:4px}kbd{font:11.5px Consolas,monospace;border:1px solid #c9d0da;border-bottom-width:2px;border-radius:4px;padding:0 4px;background:#fff}
+.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}.bar .sp{flex:1}
+button{font:inherit;border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 12px;cursor:pointer}button.teal{background:var(--teal);color:#fff;border-color:var(--teal)}button:disabled{opacity:.5;cursor:default}
+ol{list-style:none;margin:0;padding:0;max-height:calc(100vh - 220px);overflow:auto}
+li{border-bottom:1px solid var(--line);padding:8px 2px}li .top{display:flex;gap:8px;align-items:baseline}li .top a{font:12.5px Consolas,monospace;white-space:nowrap}
+li .tts{flex:1;min-width:0}li .x{border:0;background:none;color:var(--sub);padding:0 4px;font-size:15px}
+li input{width:100%;font:inherit;font-size:14px;border:1px solid var(--line);border-radius:6px;padding:5px 8px;margin-top:5px}li input.say{background:#fffaf2}
+li.flash{animation:f 1.4s}@keyframes f{from{background:var(--mark)}to{background:transparent}}
+.muted{color:var(--sub)}.msg{font-size:13px;margin-top:6px}
+.nofile{padding:30px;text-align:center;background:#111;color:#ddd;border-radius:8px}.nofile input{margin-top:10px}
+@media(max-width:1000px){.wrap{grid-template-columns:1fr}ol{max-height:none}}
+</style>
+</head>
+<body>
+<header><h1 id="title">영상 검수</h1><span class="sub" id="sub"></span></header>
+<main>
+<div class="wrap">
+  <div class="card">
+    <div id="player"></div>
+    <div class="now" id="now">—</div>
+    <div class="keys"><kbd>M</kbd> 여기 표시 · <kbd>←</kbd><kbd>→</kbd> 5초 · <kbd>Space</kbd> 재생·멈춤 · <kbd>R</kbd> 지금 줄 처음부터 · 표시한 줄에 「이렇게 읽기」를 적으면 회사에서 그 줄 낭독 칸에 들어갑니다</div>
+  </div>
+  <div class="card">
+    <div class="bar"><b id="count">검수표 0줄</b><span class="sp"></span><button id="mark">📌 여기 표시</button><button class="teal" id="save">검수표 저장</button><button id="clear">비우기</button></div>
+    <ol id="list"></ol>
+    <div class="msg muted" id="msg">브라우저에 자동으로 저장됩니다. 다 끝나면 「검수표 저장」으로 json 을 받아 드라이브의 이 회차 폴더에 올리세요.</div>
+  </div>
+</div>
+</main>
+<script>
+const D=/*__DATA__*/null;
+const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
+const fmt=s=>`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
+const LAG=1.5, KEY=`hsb-review:${D.job}:${D.made}`, byId=Object.fromEntries(D.lines.map(l=>[l.id,l]));
+let marks=[];try{marks=JSON.parse(localStorage.getItem(KEY)||'[]')}catch{}
+const keep=()=>{try{localStorage.setItem(KEY,JSON.stringify(marks))}catch{}};
+const vid=()=>document.getElementById('v');
+const lineId=i=>'L'+String(i+1).padStart(3,'0');
+function at(t){let i=-1;for(let k=0;k<D.cues.length&&D.cues[k][0]<=t;k++)i=k;return i<0?(D.cues.length?0:-1):i}
+
+$('#title').textContent=`${D.title} — 영상 검수`;document.title=`${D.job} 검수`;
+$('#sub').textContent=`${D.job} · 만든 때 ${D.made} · ${D.lines.length}줄`;
+function player(src){
+  $('#player').innerHTML=`<video id="v" src="${esc(src)}" controls preload="metadata"></video>`;
+  const v=vid();['timeupdate','seeked','loadedmetadata'].forEach(ev=>v.addEventListener(ev,now));
+  v.addEventListener('error',()=>{$('#player').innerHTML=`<div class="nofile">영상 <b>${esc(D.video)}</b> 을 찾지 못했습니다.<br>이 html 과 같은 폴더에 mp4 를 두거나, 아래에서 직접 고르세요.<br><input type="file" accept="video/mp4" id="pick"></div>`;
+    $('#pick').addEventListener('change',e=>{const f=e.target.files[0];if(f)player(URL.createObjectURL(f))})},{once:true});
+}
+player(D.video);
+function now(){const v=vid();if(!v)return;const i=at(v.currentTime);if(i<0){$('#now').textContent='—';return}
+  const l=byId[lineId(i)];$('#now').innerHTML=`<b>${lineId(i)}</b>${esc(l?l.tts:'')}`}
+function list(){
+  $('#count').textContent=`검수표 ${marks.length}줄`;$('#clear').disabled=!marks.length;
+  $('#list').innerHTML=marks.length?marks.map(m=>{const l=byId[m.id]||{};return `<li data-id="${m.id}"><div class="top"><a href="#" data-t="${m.t}" title="2초 전부터 다시 듣기">${fmt(m.t)}</a><span class="id">${m.id}</span><span class="tts">${esc(l.tts||'')}</span><button class="x" data-x="${m.id}" title="빼기">✕</button></div>
+    <input class="say" data-k="say" placeholder="이렇게 읽기 (예: 니은과 디귿만 옳습니다) — 비우면 표시만" value="${esc(m.say||'')}">
+    <input data-k="note" placeholder="메모 (선택)" value="${esc(m.note||'')}"></li>`}).join('')
+    :'<li class="muted">이상하게 들리는 곳에서 <kbd>M</kbd> 을 누르세요.</li>';
+}
+function mark(){
+  const v=vid();if(!v)return;const t=Math.max(0,v.currentTime-LAG),i=at(t);if(i<0)return;const id=lineId(i);
+  if(!marks.some(m=>m.id===id)){marks.push({id,t:+t.toFixed(1)});marks.sort((a,b)=>a.t-b.t);keep()}
+  list();document.querySelector(`li[data-id="${id}"]`)?.classList.add('flash');
+}
+async function save(){
+  const body=JSON.stringify({job:D.job,made:D.made,saved:new Date().toISOString(),marks},null,1),name=`${D.job}_검수표.json`;
+  if(window.showSaveFilePicker){try{const h=await showSaveFilePicker({suggestedName:name,types:[{description:'검수표',accept:{'application/json':['.json']}}]});
+    const w=await h.createWritable();await w.write(body);await w.close();$('#msg').textContent=`저장했습니다: ${h.name} — 드라이브의 ${D.job} 폴더에 있으면 회사에서 바로 불러옵니다.`;return}
+    catch(e){if(e.name==='AbortError')return}}
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([body],{type:'application/json'}));a.download=name;a.click();
+  $('#msg').textContent=`내려받았습니다: ${name} — 드라이브의 ${D.job} 폴더에 올리세요.`;
+}
+document.addEventListener('input',e=>{const li=e.target.closest('li[data-id]');if(!li||!e.target.dataset.k)return;const m=marks.find(x=>x.id===li.dataset.id);if(m){m[e.target.dataset.k]=e.target.value;keep()}});
+document.addEventListener('click',e=>{
+  const t=e.target;
+  if(t.id==='mark'){mark();t.blur()}
+  else if(t.id==='save'){save();t.blur()}
+  else if(t.id==='clear'){if(confirm('검수표를 비울까요?')){marks=[];keep();list()}t.blur()}
+  else if(t.dataset.x){marks=marks.filter(m=>m.id!==t.dataset.x);keep();list()}
+  else if(t.dataset.t){e.preventDefault();const v=vid();if(v){v.currentTime=Math.max(0,+t.dataset.t-2);v.play()}}
+});
+document.addEventListener('keydown',e=>{
+  const v=vid();if(!v||e.ctrlKey||e.altKey||e.metaKey||e.target.closest('input,textarea'))return;
+  const k=e.key.toLowerCase();
+  if(k==='m'){e.preventDefault();mark()}
+  else if(e.key==='ArrowLeft'){e.preventDefault();v.currentTime=Math.max(0,v.currentTime-5)}
+  else if(e.key==='ArrowRight'){e.preventDefault();v.currentTime=Math.min(v.duration||1e9,v.currentTime+5)}
+  else if(e.key===' '){e.preventDefault();v.paused?v.play():v.pause()}
+  else if(k==='r'){e.preventDefault();const i=at(v.currentTime);if(i>=0){v.currentTime=D.cues[i][0];v.play()}}
+});
+window.addEventListener('beforeunload',keep);
+list();now();
+</script>
+</body>
+</html>

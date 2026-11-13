@@ -353,7 +353,7 @@ function rvNow(){
 function rvList(){
   const box=$('#rvlist');if(!box)return;const ms=V?.marks||[];
   $('#rvcount').textContent=`검수표 ${ms.length}줄`;$('#rvonly').disabled=!ms.length;$('#rvclear').disabled=!ms.length;
-  box.innerHTML=ms.length?ms.map(m=>{const l=vLine(m.id);return `<li data-id="${m.id}"><a href="#" data-rvt="${m.t}" title="${fmt(Math.max(0,m.t-2))}부터 다시 듣기">${fmt(m.t)}</a><span class="go" data-rvgo="${m.id}" title="눌러서 이 줄 고치기"><b>${m.id}</b> ${esc(l?l.tts:'(대본에 없는 줄)')}</span><button data-rvx="${m.id}" title="검수표에서 빼기">✕</button></li>`}).join('')
+  box.innerHTML=ms.length?ms.map(m=>{const l=vLine(m.id);return `<li data-id="${m.id}"><a href="#" data-rvt="${m.t}" title="${fmt(Math.max(0,m.t-2))}부터 다시 듣기">${fmt(m.t)}</a><span class="go" data-rvgo="${m.id}" title="눌러서 이 줄 고치기${m.note?' — 메모: '+esc(m.note):''}"><b>${m.id}</b> ${esc(l?l.tts:'(대본에 없는 줄)')}${m.note?` <em class="muted">· ${esc(m.note)}</em>`:''}</span><button data-rvx="${m.id}" title="검수표에서 빼기">✕</button></li>`}).join('')
     :'<li class="muted"><span>이상하게 들리는 곳에서 <kbd>M</kbd> 을 누르세요.</span></li>';
 }
 function rvRender(){
@@ -365,7 +365,12 @@ function rvRender(){
     <div class="now" id="rvnow">—</div>
     <div class="keys"><kbd>M</kbd> 여기 표시 · <kbd>←</kbd><kbd>→</kbd> 5초 · <kbd>Space</kbd> 재생·멈춤 · <kbd>R</kbd> 지금 줄 처음부터</div></div>
   <div><div class="bar" style="margin:0"><b id="rvcount"></b><span style="flex:1"></span><button class="b" id="rvmark">📌 여기 표시</button><button class="b teal" id="rvonly">검수표만 고치기</button><button class="b" id="rvclear">비우기</button></div>
-    <ol id="rvlist"></ol></div>`;
+    <ol id="rvlist"></ol>
+    <div class="bar" style="margin:8px 0 0;font-size:13px"><span class="muted">집 노트북 검수</span><span style="flex:1"></span>
+      <button class="b" id="rvimport" title="드라이브의 이 회차 폴더에 올린 ${esc(viewId)}_검수표.json 을 가져옵니다 — 표시는 합치고, 「이렇게 읽기」는 그 줄 낭독 칸에 넣습니다">드라이브에서 불러오기</button>
+      <button class="b" id="rvfile" title="검수표 json 파일을 직접 골라 불러옵니다">파일로 불러오기</button><input type="file" id="rvfilein" accept=".json,application/json" hidden>
+      <button class="b" id="rvpack" title="검수용 html 을 다시 만들고 드라이브로 mp4 와 함께 복사합니다(5 영상 때 자동으로 만들어집니다)">검수 파일 만들기</button></div></div>`;
+  $('#rvfilein').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;try{rvImported(await api(`/api/jobs/${viewId}/review/import`,{method:'POST',body:JSON.stringify({data:JSON.parse(await f.text())})}))}catch(x){alert(x.message)}e.target.value=''});
   const v=rvVideo();v.addEventListener('timeupdate',rvNow);v.addEventListener('seeked',rvNow);
   rvList();rvNow();
 }
@@ -377,12 +382,19 @@ function renderMarked(){
   ${all.filter(l=>want.has(l.id)).map(l=>want.get(l.id)==='prev'?vCard(l).replace('class="vl"','class="vl vdim"'):vCard(l)).join('')}`;
   vCount();
 }
+async function rvImported(r){
+  alert(`${r.from}에서 불러왔습니다 — 검수표 ${r.marks}줄${r.said?`, 「이렇게 읽기」 ${r.said}줄은 낭독 칸에 넣었습니다(다시 합성은 카드에서)`:''}`);
+  await loadVoice();rvOnly=true;renderVoice();
+}
 async function rvClick(e){
   const t=e.target;
   if(t.id==='rvopen'){rvOpen=!rvOpen;rvRender();return true}
   if(t.id==='rvmark'){rvMark();return true}
   if(t.id==='rvonly'){rvOnly=true;renderVoice();$('#vmain').scrollIntoView({behavior:'smooth'});return true}
   if(t.id==='rvback'){rvOnly=false;renderVoice();return true}
+  if(t.id==='rvimport'){try{rvImported(await api(`/api/jobs/${viewId}/review/import`,{method:'POST',body:'{}'}))}catch(x){alert(x.message)}return true}
+  if(t.id==='rvfile'){$('#rvfilein').click();return true}
+  if(t.id==='rvpack'){t.disabled=true;t.textContent='만드는 중…';try{const r=await api(`/api/jobs/${viewId}/review/pack`,{method:'POST'});alert(r.drive?`드라이브에 넣었습니다:\n${r.drive}\n\n집 노트북에서 그 폴더의 ${viewId}_검수.html 을 여세요.`:`만들었습니다(드라이브 폴더를 못 찾아 out/ 에만):\n${r.html}`)}catch(x){alert(x.message)}t.disabled=false;t.textContent='검수 파일 만들기';return true}
   if(t.id==='rvclear'){if(confirm('검수표를 비울까요?')){V.marks=[];rvOnly=false;await rvSave();renderVoice()}return true}
   const x=t.closest('[data-rvx]');if(x){V.marks=V.marks.filter(m=>m.id!==x.dataset.rvx);await rvSave();if(rvOnly)renderVoice();return true}
   const go=t.closest('[data-rvgo]');if(go){rvOnly=true;renderVoice();const card=document.querySelector(`.vl[data-id="${go.dataset.rvgo}"]`);
