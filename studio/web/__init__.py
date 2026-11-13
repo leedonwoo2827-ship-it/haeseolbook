@@ -254,6 +254,13 @@ def create_app():
             _proc = subprocess.Popen(args, cwd=ROOT, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             _desc = f"{', '.join(items)} · {' → '.join(stages)}"
+        if body.get("open_folder"):          # 음성 체크 탭의 굽기 — 잘 끝나면 완성 영상 폴더(out/)를 연다
+            out, proc = job_or_404(str(body["open_folder"])).dir / "out", _proc
+
+            def _open_when_done():
+                if proc.wait() == 0 and out.is_dir():
+                    os.startfile(str(out))  # type: ignore[attr-defined]
+            threading.Thread(target=_open_when_done, daemon=True).start()
         if "post" in stages:                 # 롱폼 공방처럼 — 왼쪽 YouTube Chrome, 오른쪽 올리기 패널
             threading.Thread(target=_panel, daemon=True).start()
         return {"ok": True, "running": _desc}
@@ -472,6 +479,11 @@ def create_app():
     def voice_ok(job_id: str, body: Dict[str, Any] = Body(...)):
         job_or_404(job_id).update_state(voice_ok=True if body.get("ok") else None)
         return {"ok": True}
+
+    @app.put("/api/jobs/{job_id}/voice/review")
+    def voice_review(job_id: str, body: Dict[str, Any] = Body(...)):
+        from .. import voicecheck
+        return vc(voicecheck.review_put, job_or_404(job_id), list(body.get("marks") or []))
 
     @app.get("/api/jobs/{job_id}/voice/wav")
     def voice_wav(job_id: str, id: str):

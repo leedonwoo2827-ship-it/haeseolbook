@@ -132,8 +132,27 @@ def spoken(text: str, subject: Optional[str] = None) -> str:
         from .numbers import speak_native
         text = speak_native(text)                           # 3건 → 세 건 · 2개 → 두 개
         from .numbers import sino
-        text = _NUM_COPULA.sub(lambda m: sino(int(m.group(1))), text)  # 부서코드가 20인 → 이십인
-    return pm.apply(speak_numbers(speak(text, sheet=sheet)), spell_unknown_acronyms=True, convert_years=True)
+        text = _NUM_COPULA.sub(lambda m: _copula_num(sino(int(m.group(1)))), text)  # 부서코드가 20인 → 이십인
+    return drop_parens(pm.apply(speak_numbers(speak(text, sheet=sheet)), spell_unknown_acronyms=True, convert_years=True))
+
+
+def _copula_num(say: str) -> str:
+    """월이 4인 → 「사 인」 — 붙이면 「싸인」으로 들린다(사용자 2026-11-13)"""
+    return say + " " if say.endswith("사") else say
+
+
+_PAREN_OPEN = re.compile(r"\s*[(（]\s*")
+_PAREN_CLOSE = re.compile(r"\s*[)）]")
+
+
+def drop_parens(text: str) -> str:
+    """낭독에는 괄호를 남기지 않는다 — 안의 말만 읽는다(사용자 2026-11-13).
+    행의 (에이, 비) 값으로 → 행의 에이, 비 값으로 · (에이)를 → 에이를 · 썸(수량) → 썸 수량"""
+    if not text or not re.search(r"[()（）]", text):
+        return text
+    text = _PAREN_OPEN.sub(" ", text)
+    text = _PAREN_CLOSE.sub("", text)
+    return re.sub(r"\s+([,.?!])", r"\1", re.sub(r"\s{2,}", " ", text)).strip()
 
 
 def missing() -> List[str]:

@@ -3,6 +3,7 @@
   script/voice_fix.json    {줄ID: {tts, src}}   손으로 고친 발음 (src = 고칠 때의 say, 다르면 무효)
   script/voice_check.json  {줄ID: 확인한 tts}   발음이 바뀌면 확인이 풀린다
   state.json voice_ok      「음성 체크 완료 표시」
+  script/review_marks.json {marks: [{id, t}]}  검수표 — 영상 보며 M 으로 표시한 줄(t = 영상 시각 초)
 발음 사전: 공통 studio/pronunciation.yaml · 과목 studio/dict/<과목id>.yaml (같은 키는 과목이 이긴다)
 고친 발음·사전은 「음성 고친 판 굽기」(s3→s5)에서 반영된다. 화면에서 미리 합성한 wav 는 s3 가 그대로 쓴다.
 """
@@ -39,11 +40,13 @@ AI_PROMPT = """아래는 시험 해설 영상 내레이션(한국어 TTS)의 발
 - [발음] 이 이미 한글로 맞게 읽히면 바꾸지 않는다(사람이 고친 표기를 되돌리지 않는다).
 - 문장 뜻 · 어순 · 조사는 바꾸지 않는다. 고칠 게 없으면 그대로 둔다.
 - 참고로 [대본] 은 원래 문장, [자막] 은 화면에 보이는 글이다(고치지 않는다).
-- 고친 발음에는 로마자(A~Z, a~z), 아라비아 숫자, 수식 기호가 하나도 남으면 안 된다 — 꼭 한글로 바꾼다.
+- 괄호 ( ) 는 남기지 않는다 — 안의 말만 읽는다: 행의 (A, B) 값으로 → 행의 에이, 비 값으로, (A)를 → 에이를.
+- 숫자 4 뒤의 「인」은 띄운다: 월이 4인 → 월이 사 인(붙이면 「싸인」으로 들린다).
+- 고친 발음에는 로마자(A~Z, a~z), 아라비아 숫자, 수식 기호, 괄호가 하나도 남으면 안 된다 — 꼭 한글로 바꾼다.
 답은 JSON 객체 하나만: {"줄ID": "고친 발음 전문", ...} — 설명 · 코드펜스 없이.
 
 """
-LEFTOVER = re.compile(r"[A-Za-z0-9²³√∑Σ≤≥≠×÷±∞π^%=<>+*/]")
+LEFTOVER = re.compile(r"[A-Za-z0-9²³√∑Σ≤≥≠×÷±∞π^%=<>+*/()（）]")
 
 
 def _norm(t: str) -> str:
@@ -88,9 +91,23 @@ def lines(job: Job) -> Dict[str, Any]:
             "capEdited": bool(cap_edits.get(it["id"])) and cap_edits[it["id"]].get("orig") != it["cap"],
         })
     total = len(c["items"])
+    timing = read_json(job.audio / "timing.json", {}) or {}
     return {"chapters": [x for x in chapters if x["lines"]], "total": total,
             "checked": sum(1 for x in chapters for ln in x["lines"] if ln["ok"]),
-            "voiceOk": bool(job.state().get("voice_ok")), "subject": c["subject"]}
+            "voiceOk": bool(job.state().get("voice_ok")), "subject": c["subject"],
+            # 검수표: 영상 시각 → 줄(cues[i] = L{i+1}) · 표시한 줄
+            "cues": [[cu["start"], cu["end"]] for cu in timing.get("cues", [])],
+            "hasVideo": job.video.exists(), "marks": review_get(job)}
+
+
+def review_get(job: Job) -> List[Dict[str, Any]]:
+    return (read_json(job.scripts / "review_marks.json", {}) or {}).get("marks", [])
+
+
+def review_put(job: Job, marks: List[Dict[str, Any]]) -> Dict[str, Any]:
+    clean = [{"id": str(m["id"]), "t": round(float(m.get("t", 0)), 1)} for m in marks if re.fullmatch(r"L\d{3,4}", str(m.get("id", "")))]
+    write_json(job.scripts / "review_marks.json", {"marks": clean})
+    return {"ok": True, "marks": clean}
 
 
 def save_line(job: Job, lid: str, tts: str, synth: bool = False) -> Dict[str, Any]:

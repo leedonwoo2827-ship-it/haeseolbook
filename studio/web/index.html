@@ -63,7 +63,16 @@ a{color:#1f5fbf}
 .vnums{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}.vnums button{font:inherit;font-size:13px;min-width:36px;border:1px solid var(--line);background:#f5f6f8;border-radius:7px;padding:4px 7px;cursor:pointer}
 .vnums button.ok{background:var(--okbg);color:var(--ok);border-color:#bfe3c9}.vnums button.half{background:var(--warnbg);color:var(--warn)}.vnums button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
 .vhead{display:flex;gap:14px;align-items:flex-start;margin:6px 0 10px}.vhead img{width:420px;max-width:45%;border-radius:8px;border:1px solid var(--line);cursor:zoom-in}
-.vl{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0 0 10px;background:#fff}
+.vl{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0 0 10px;background:#fff}.vl.vdim{opacity:.55}.vl.vdim:hover,.vl.vdim:focus-within{opacity:1}
+/* 검수표 — 영상 보며 M 으로 표시 → 표시한 줄만 고치기 */
+.rv{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:14px;margin:8px 0 12px;padding:12px;border:1px solid var(--line);border-radius:12px;background:#fbfcfd}
+.rv video{width:100%;border-radius:8px;background:#000}.rv .now{margin-top:6px;font-size:14px}.rv .now b{font:12px Consolas,monospace;background:#eef1f5;border-radius:5px;padding:1px 6px;margin-right:6px}
+.rv .keys{font-size:12.5px;color:var(--sub);margin-top:4px}.rv kbd{font:11.5px Consolas,monospace;border:1px solid #c9d0da;border-bottom-width:2px;border-radius:4px;padding:0 4px;background:#fff}
+.rv ol{list-style:none;margin:6px 0 0;padding:0;max-height:340px;overflow:auto}.rv li{display:flex;gap:8px;align-items:baseline;padding:5px 2px;border-bottom:1px solid var(--line);font-size:14px}
+.rv li a{font:12.5px Consolas,monospace;white-space:nowrap}.rv li b{font:12px Consolas,monospace}.rv li span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rv li button{border:0;background:none;color:var(--sub);cursor:pointer;font-size:14px}
+.rv li .go{cursor:pointer}.rv li .go:hover{color:var(--navy);text-decoration:underline}.rv li .go b{margin-right:6px}
+.rv .flash,.vl.flash{animation:rvf 1.6s}@keyframes rvf{from{background:var(--warnbg)}to{background:transparent}}
+@media(max-width:1100px){.rv{grid-template-columns:1fr}}
 .vl .vh{display:flex;gap:6px;align-items:center;margin-bottom:6px}.vl .vtags{display:flex;gap:6px;flex-wrap:wrap}.vl .vh b{font:12px Consolas,monospace;background:#eef1f5;border-radius:5px;padding:1px 6px}
 .v2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.v2 small{display:block;color:var(--sub);font-size:12px;margin-bottom:2px}
 .vsay{background:#f6f7f9;border-radius:7px;padding:6px 8px;font-size:14px;min-height:58px}.vcap{color:var(--sub);font-size:12.5px;margin-top:4px}
@@ -142,7 +151,8 @@ mark.left{background:#fde8e6;color:var(--bad)}
   </section>
   <section id="tab-voice" class="panel" hidden>
     <div class="bar"><span class="lab">음성 체크</span><select id="vjob"></select><span id="vcount"></span>
-      <span style="flex:1"></span><button class="b teal" id="vbake" title="「확인」 안 한 줄을 전부 AI 발음 교정 → 바뀐 문장만 다시 합성 → 화면 → 영상까지 (손으로 고친 줄·확인한 줄은 그대로)">한 번에 고치고 굽기</button><button class="b" id="vfolder" title="이 회차의 완성 영상 폴더(out)를 탐색기로 엽니다 — 파일 시각으로 언제 구운 판인지 확인">영상 폴더</button><button class="b" id="vdone">음성 체크 완료 표시</button><button class="b" id="vdict" title="발음 사전 열기·접기">발음 사전 ⇥</button></div>
+      <span style="flex:1"></span><button class="b" id="rvopen" title="영상을 보며 이상한 곳에서 M — 표시한 줄만 모아 고칩니다">🎬 영상 보며 검수</button><button class="b" id="vrebake" title="AI 교정 없이, 지금 낭독 칸 그대로 3 목소리 → 4 화면 → 5 영상 (바뀐 문장만 다시 합성) — 음성 체크를 마친 뒤 이것">음성 고친 판 굽기</button><button class="b teal" id="vbake" title="「확인」 안 한 줄을 전부 AI 발음 교정 → 바뀐 문장만 다시 합성 → 화면 → 영상까지 (손으로 고친 줄·확인한 줄은 그대로)">한 번에 고치고 굽기</button><button class="b" id="vfolder" title="이 회차의 완성 영상 폴더(out)를 탐색기로 엽니다 — 파일 시각으로 언제 구운 판인지 확인">영상 폴더</button><button class="b" id="vdone">음성 체크 완료 표시</button><button class="b" id="vdict" title="발음 사전 열기·접기">발음 사전 ⇥</button></div>
+    <div id="rv" hidden></div>
     <div class="vc" id="vc"><div id="vmain"><p class="muted">③ 결과 보기에서 회차를 고르거나 위에서 고르세요.</p></div><aside class="vdict" id="vdictbox"></aside></div>
   </section>
   <pre class="log" id="log"></pre>
@@ -218,7 +228,7 @@ async function load(){
 async function logTick(){const r=await fetch('/api/log');const t=await r.text();const el=$('#log');const at=el.scrollTop+el.clientHeight>=el.scrollHeight-20;if(el.textContent!==t){el.textContent=t;if(at)el.scrollTop=el.scrollHeight}}
 document.addEventListener('change',e=>{
   if(e.target.id==='acc'){api('/api/accounts/use',{method:'POST',body:JSON.stringify({name:e.target.value})});return}
-  if(e.target.id==='vjob'){viewId=e.target.value;vch=0;loadVoice();return}
+  if(e.target.id==='vjob'){viewId=e.target.value;vch=0;rvOnly=false;loadVoice();return}
   if(e.target.classList.contains('dv')){const r=e.target.closest('[data-dk]');dictPut({k:r.dataset.dk,v:e.target.value,src:r.dataset.src==='기본'?'공통':r.dataset.src});return}
   if(e.target.classList.contains('vok')){vCheck(e.target.closest('.vl').dataset.id,e.target.checked);return}
   if(e.target.classList.contains('vcap')){vCap(e.target);return}
@@ -278,7 +288,7 @@ async function showView(){
 let V=null, vch=0, D=null, vdictOpen=innerWidth>=1100;   // 좁은 창에서는 사전이 덮개라 닫아 둔다
 try{const v=localStorage.getItem('hsb.vdict');if(v&&innerWidth>=1100)vdictOpen=v==='1'}catch{}
 const LEFT=/[A-Za-z0-9²³√∑Σ≤≥≠×÷±∞π^%=<>+*\/]/;
-const markLeft=t=>esc(t).replace(/[A-Za-z0-9²³√∑Σ≤≥≠×÷±∞π^%=+*\/]+|&#60;|&#62;/g,m=>`<mark class="left">${m}</mark>`);
+const markLeft=t=>String(t??'').split(/([A-Za-z0-9²³√∑Σ≤≥≠×÷±∞π^%=+*\/<>]+)/).map((p,i)=>i%2?`<mark class="left">${esc(p)}</mark>`:esc(p)).join('');   // 칠한 뒤가 아니라 칠할 조각을 먼저 잘라 이스케이프(' → &#39; 의 39 가 칠해지지 않게)
 const vLine=id=>V.chapters.flatMap(c=>c.lines).find(l=>l.id===id);
 async function loadVoice(){
   const ex=(O?.rows||[]).filter(r=>r.exists&&r.script);
@@ -288,6 +298,7 @@ async function loadVoice(){
   if(!viewId)return;
   try{V=await api(`/api/jobs/${viewId}/voice`)}catch(x){$('#vmain').innerHTML=`<p class="muted">${esc(x.message)}</p>`;return}
   vch=Math.max(0,Math.min(vch,V.chapters.length-1));renderVoice();loadDict();
+  if(rvOpen&&rvVideo()?.dataset.job!==viewId)rvRender();else rvList();
 }
 function chName(c){return c.quiz?String(c.quiz):(c.kind==='intro'?'시작':c.kind==='outro'?'맺음':c.title)}
 function vCount(){
@@ -309,6 +320,8 @@ function vCard(l){
 }
 function renderVoice(){
   const c=V.chapters[vch];
+  if(rvOnly&&(V.marks||[]).length){renderMarked();return}
+  rvOnly=false;
   $('#vmain').innerHTML=`<div class="vnums">${V.chapters.map((x,i)=>`<button data-ch="${i}" title="${esc(x.title)}">${esc(chName(x))}</button>`).join('')}</div>
   <div class="bar" style="margin:4px 0"><b>${vch+1} / ${V.chapters.length}</b><span class="muted">${esc(c.title)} · ${c.lines.length}줄</span><span style="flex:1"></span>
     <button class="b teal" data-vall="ai" hidden title="AI 교정 제안을 바로 적용하고, 합성 안 된 줄까지 모두 합성합니다 — 듣고 확인만 하세요">이 장 전부 AI 교정 + 합성</button><button class="b" data-vnav="-1">이전</button><button class="b" data-vnav="1">다음</button></div>
@@ -316,7 +329,77 @@ function renderVoice(){
   ${c.lines.map(vCard).join('')}`;
   vCount();
 }
-function vReplace(l){const el=document.querySelector(`.vl[data-id="${l.id}"]`);if(el)el.outerHTML=vCard(l);vCount()}
+function vReplace(l){const el=document.querySelector(`.vl[data-id="${l.id}"]`);if(el){const dim=el.classList.contains('vdim');el.outerHTML=vCard(l);if(dim)document.querySelector(`.vl[data-id="${l.id}"]`)?.classList.add('vdim')}vCount()}
+
+// ── 검수표 ─────────────────────────────────────────────────
+// 영상을 보며 이상한 곳에서 M → 그 시각의 줄을 표시(반응이 늦으니 1.5초 앞) → 「검수표만 고치기」로 표시한 줄과 바로 앞 줄만 모아 고친다.
+// 줄 ID = L{cues 순번+1} (studio/voice.py flatten 과 timing.json cues 가 같은 순서). 저장: script/review_marks.json
+let rvOpen=false, rvOnly=false;
+const RV_LAG=1.5, rvId=i=>'L'+String(i+1).padStart(3,'0');
+const rvVideo=()=>document.getElementById('rvv');
+function rvAt(t){const c=V?.cues||[];let i=-1;for(let k=0;k<c.length&&c[k][0]<=t;k++)i=k;return i<0?(c.length?0:-1):i}
+async function rvSave(){if(!viewId)return;try{const r=await api(`/api/jobs/${viewId}/voice/review`,{method:'PUT',body:JSON.stringify({marks:V.marks})});V.marks=r.marks}catch(x){alert(x.message)}rvList();vCount()}
+function rvMark(){
+  const v=rvVideo();if(!v||!V)return;const t=Math.max(0,v.currentTime-RV_LAG),i=rvAt(t);if(i<0)return;
+  const id=rvId(i);V.marks=V.marks||[];
+  if(!V.marks.some(m=>m.id===id)){V.marks.push({id,t:+t.toFixed(1)});V.marks.sort((a,b)=>a.t-b.t)}
+  rvSave().then(()=>document.querySelector(`#rv li[data-id="${id}"]`)?.classList.add('flash'));
+}
+function rvNow(){
+  const v=rvVideo(),el=$('#rvnow');if(!v||!el)return;const i=rvAt(v.currentTime);
+  if(i<0){el.textContent='—';return}const l=vLine(rvId(i));
+  el.innerHTML=`<b>${rvId(i)}</b>${esc(l?l.tts:'')}`;
+}
+function rvList(){
+  const box=$('#rvlist');if(!box)return;const ms=V?.marks||[];
+  $('#rvcount').textContent=`검수표 ${ms.length}줄`;$('#rvonly').disabled=!ms.length;$('#rvclear').disabled=!ms.length;
+  box.innerHTML=ms.length?ms.map(m=>{const l=vLine(m.id);return `<li data-id="${m.id}"><a href="#" data-rvt="${m.t}" title="${fmt(Math.max(0,m.t-2))}부터 다시 듣기">${fmt(m.t)}</a><span class="go" data-rvgo="${m.id}" title="눌러서 이 줄 고치기"><b>${m.id}</b> ${esc(l?l.tts:'(대본에 없는 줄)')}</span><button data-rvx="${m.id}" title="검수표에서 빼기">✕</button></li>`}).join('')
+    :'<li class="muted"><span>이상하게 들리는 곳에서 <kbd>M</kbd> 을 누르세요.</span></li>';
+}
+function rvRender(){
+  const box=$('#rv');box.hidden=!rvOpen;$('#rvopen').textContent=rvOpen?'🎬 검수 닫기':'🎬 영상 보며 검수';
+  if(!rvOpen){box.innerHTML='';return}
+  if(!V||!V.hasVideo||!(V.cues||[]).length){box.className='rv';box.innerHTML='<p class="muted">이 회차는 아직 구운 영상(또는 timing)이 없습니다 — 5 영상까지 만든 뒤 검수하세요.</p>';return}
+  box.className='rv';
+  box.innerHTML=`<div><video id="rvv" data-job="${esc(viewId)}" src="/api/jobs/${viewId}/file/video?ts=${Date.now()}" controls preload="metadata"></video>
+    <div class="now" id="rvnow">—</div>
+    <div class="keys"><kbd>M</kbd> 여기 표시 · <kbd>←</kbd><kbd>→</kbd> 5초 · <kbd>Space</kbd> 재생·멈춤 · <kbd>R</kbd> 지금 줄 처음부터</div></div>
+  <div><div class="bar" style="margin:0"><b id="rvcount"></b><span style="flex:1"></span><button class="b" id="rvmark">📌 여기 표시</button><button class="b teal" id="rvonly">검수표만 고치기</button><button class="b" id="rvclear">비우기</button></div>
+    <ol id="rvlist"></ol></div>`;
+  const v=rvVideo();v.addEventListener('timeupdate',rvNow);v.addEventListener('seeked',rvNow);
+  rvList();rvNow();
+}
+function renderMarked(){
+  const all=V.chapters.flatMap(c=>c.lines),want=new Map();
+  V.marks.forEach(m=>{const i=all.findIndex(l=>l.id===m.id);if(i<0)return;if(i>0&&!want.has(all[i-1].id))want.set(all[i-1].id,'prev');want.set(m.id,'mark')});
+  $('#vmain').innerHTML=`<div class="vnums">${V.chapters.map((x,i)=>`<button data-ch="${i}" title="${esc(x.title)}">${esc(chName(x))}</button>`).join('')}</div>
+  <div class="bar" style="margin:4px 0"><b>검수표만</b><span class="muted">표시한 ${V.marks.length}줄 · 흐린 카드는 바로 앞 줄(표시가 한 박자 늦었을 때)</span><span style="flex:1"></span><button class="b" id="rvback">장별로 보기</button></div>
+  ${all.filter(l=>want.has(l.id)).map(l=>want.get(l.id)==='prev'?vCard(l).replace('class="vl"','class="vl vdim"'):vCard(l)).join('')}`;
+  vCount();
+}
+async function rvClick(e){
+  const t=e.target;
+  if(t.id==='rvopen'){rvOpen=!rvOpen;rvRender();return true}
+  if(t.id==='rvmark'){rvMark();return true}
+  if(t.id==='rvonly'){rvOnly=true;renderVoice();$('#vmain').scrollIntoView({behavior:'smooth'});return true}
+  if(t.id==='rvback'){rvOnly=false;renderVoice();return true}
+  if(t.id==='rvclear'){if(confirm('검수표를 비울까요?')){V.marks=[];rvOnly=false;await rvSave();renderVoice()}return true}
+  const x=t.closest('[data-rvx]');if(x){V.marks=V.marks.filter(m=>m.id!==x.dataset.rvx);await rvSave();if(rvOnly)renderVoice();return true}
+  const go=t.closest('[data-rvgo]');if(go){rvOnly=true;renderVoice();const card=document.querySelector(`.vl[data-id="${go.dataset.rvgo}"]`);
+    if(card){card.scrollIntoView({behavior:'smooth',block:'center'});card.classList.remove('flash');void card.offsetWidth;card.classList.add('flash');card.querySelector('.vtts')?.focus({preventScroll:true})}return true}
+  const at=t.closest('[data-rvt]');if(at){e.preventDefault();const v=rvVideo();if(v){v.currentTime=Math.max(0,+at.dataset.rvt-2);v.play()}return true}
+  return false;
+}
+document.addEventListener('keydown',e=>{
+  const v=rvVideo();if(!rvOpen||!v||$('#tab-voice').hidden||e.ctrlKey||e.altKey||e.metaKey)return;
+  if(e.target.closest('textarea,input,select,[contenteditable]'))return;
+  const k=e.key.toLowerCase();
+  if(k==='m'){e.preventDefault();rvMark()}
+  else if(e.key==='ArrowLeft'){e.preventDefault();v.currentTime=Math.max(0,v.currentTime-5)}
+  else if(e.key==='ArrowRight'){e.preventDefault();v.currentTime=Math.min(v.duration||1e9,v.currentTime+5)}
+  else if(e.key===' '){e.preventDefault();v.paused?v.play():v.pause()}
+  else if(k==='r'){e.preventDefault();const i=rvAt(v.currentTime);if(i>=0){v.currentTime=V.cues[i][0];v.play()}}
+});
 function diffRed(a,b){
   const x=a.split(' '),y=b.split(' '),n=x.length,m=y.length,L=Array.from({length:n+1},()=>new Array(m+1).fill(0));
   for(let i=n-1;i>=0;i--)for(let j=m-1;j>=0;j--)L[i][j]=x[i]===y[j]?L[i+1][j+1]+1:Math.max(L[i+1][j],L[i][j+1]);
@@ -366,8 +449,9 @@ async function vAI(ids,btn){
   catch(x){alert(x.message);btn.textContent=t}finally{btn.disabled=false}
 }
 async function voiceClick(e){
-  const ch=e.target.closest('.vnums button[data-ch]');if(ch){vch=+ch.dataset.ch;renderVoice();return true}
-  const nv=e.target.closest('button[data-vnav]');if(nv){vch=Math.max(0,Math.min(V.chapters.length-1,vch+(+nv.dataset.vnav)));renderVoice();window.scrollTo(0,$('#tab-voice').offsetTop);return true}
+  if(await rvClick(e)){if(e.target.matches('button'))e.target.blur();return true}   // 버튼에 포커스가 남으면 스페이스가 그 버튼을 또 누른다
+  const ch=e.target.closest('.vnums button[data-ch]');if(ch){rvOnly=false;vch=+ch.dataset.ch;renderVoice();return true}
+  const nv=e.target.closest('button[data-vnav]');if(nv){rvOnly=false;vch=Math.max(0,Math.min(V.chapters.length-1,vch+(+nv.dataset.vnav)));renderVoice();window.scrollTo(0,$('#tab-voice').offsetTop);return true}
   const all=e.target.closest('button[data-vall]');if(all){vAIAll(V.chapters[vch].lines.map(l=>l.id),all);return true}
   if(e.target.matches('img[data-zoom]')){window.open(e.target.src,'_blank');return true}
   const a=e.target.closest('button[data-va]');
@@ -382,10 +466,13 @@ async function voiceClick(e){
   if(e.target.id==='vdict'||e.target.id==='vdictx'){vdictOpen=!vdictOpen;try{localStorage.setItem('hsb.vdict',vdictOpen?'1':'0')}catch{};$('#vc').classList.toggle('closed',!vdictOpen);return true}
   if(e.target.id==='vdone'&&V){await api(`/api/jobs/${viewId}/voice/ok`,{method:'POST',body:JSON.stringify({ok:!V.voiceOk})});V.voiceOk=!V.voiceOk;vCount();return true}
   if(e.target.id==='vfolder'){if(viewId)try{await api(`/api/jobs/${viewId}/folder`,{method:'POST'})}catch(x){alert(x.message)}return true}
+  if(e.target.id==='vrebake'){const r=O.rows.find(r=>r.id===viewId);if(!r)return true;
+    if(confirm('지금 낭독 칸 그대로(AI 교정 없이) 바뀐 문장만 다시 합성해 영상까지 구울까요?'))
+      try{await api('/api/run',{method:'POST',body:JSON.stringify({items:[r.key],stages:['s3','s4','s5'],subject,open_folder:viewId})});load()}catch(x){alert(x.message)}
+    return true}
   if(e.target.id==='vbake'){const r=O.rows.find(r=>r.id===viewId);if(!r)return true;
-    if(confirm('「확인」 안 한 줄을 전부 AI 발음 교정하고, 바뀐 문장만 다시 합성해 영상까지 구울까요?
-(손으로 고친 줄과 「확인」한 줄은 그대로 둡니다 · 몇 분 걸립니다)'))
-      try{await api('/api/run',{method:'POST',body:JSON.stringify({items:[r.key],stages:['vfix','s3','s4','s5'],subject})});load()}catch(x){alert(x.message)}
+    if(confirm('「확인」 안 한 줄을 전부 AI 발음 교정하고, 바뀐 문장만 다시 합성해 영상까지 구울까요?\n(손으로 고친 줄과 「확인」한 줄은 그대로 둡니다 · 몇 분 걸립니다)'))
+      try{await api('/api/run',{method:'POST',body:JSON.stringify({items:[r.key],stages:['vfix','s3','s4','s5'],subject,open_folder:viewId})});load()}catch(x){alert(x.message)}
     return true}
   const mk=e.target.closest('button[data-mk]');if(mk){$('#dk').value=mk.dataset.mk;$('#dv').focus();return true}
   if(e.target.id==='dadd'){await dictPut({k:$('#dk').value,v:$('#dv').value,src:$('#ds').value});return true}
