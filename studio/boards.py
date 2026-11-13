@@ -85,6 +85,65 @@ W, H = T.W, T.H
 def frame(job: Job, no: int, title: str, total: int = 20, first: int = 1) -> Tuple[Image.Image, Dict[str, Any]]:
     """문항 화면과 원문→화면 변환 정보 {s, ox, oy, places}. 모의고사 2과목은 21~40번이라 first·total 로 범위를 준다"""
     info = read_json(job.boards / "boards.json")["questions"][str(no)]
+    img = frame_bg(job, no, title, total, first)
+    # 원문
+    crop_img = Image.open(job.boards / info["crop"]).convert("RGB")
+    bw, bh = CARD[2] - CARD[0] - 2 * PAD, CARD[3] - CARD[1] - 2 * PAD
+    s = min(bw / crop_img.width, bh / crop_img.height, 1.0)
+    im = crop_img.resize((max(1, int(crop_img.width * s)), max(1, int(crop_img.height * s))), Image.LANCZOS)
+    ox = int(CARD[0] + PAD + (bw - im.width) / 2)
+    oy = int(CARD[1] + PAD + (bh - im.height) / 2)
+    img.paste(im, (ox, oy))
+    return img, {"s": s, "ox": ox, "oy": oy, "places": info["places"]}
+
+
+# ── 세로로 긴 문항: 크게 키워 판서 따라 위아래로 (목표서 pan_tall, SQLD 처럼 표·SQL 이 긴 문항) ──
+PAN_SHRINK = 0.6      # 카드에 통째로 넣으면 폭 맞춤의 60% 아래로 줄어드는 문항만
+PAN_SCREENS = 2.5     # 키워도 카드 높이의 2.5배까지 (그 이상은 이동이 너무 잦다)
+PAN_IN, PAN_R = 4, 14       # 보는 창 = 카드 먹선(4px) 안쪽, 모서리 반지름
+
+
+def tall_view(job: Job, no: int) -> Optional[Dict[str, Any]]:
+    """긴 문항이면 {canvas, geo(캔버스 좌표), sx, sy, view_h} — 아니면 None(기존 화면 그대로).
+    보는 창 = 카드 먹선 안쪽 전체. 캔버스 바탕은 원문 종이색(흰색)이라 카드 안이 한 장으로 보인다."""
+    info = read_json(job.boards / "boards.json")["questions"][str(no)]
+    crop_img = Image.open(job.boards / info["crop"]).convert("RGB")
+    bw, bh = CARD[2] - CARD[0] - 2 * PAD, CARD[3] - CARD[1] - 2 * PAD
+    s_w = min(bw / crop_img.width, 1.0)
+    s_fit = min(s_w, bh / crop_img.height)
+    if s_fit >= PAN_SHRINK * s_w:
+        return None
+    s = min(s_w, PAN_SCREENS * bh / crop_img.height)
+    im = crop_img.resize((max(1, int(crop_img.width * s)), max(1, int(crop_img.height * s))), Image.LANCZOS)
+    vx0, vy0, vx1, vy1 = CARD[0] + PAN_IN, CARD[1] + PAN_IN, CARD[2] - PAN_IN, CARD[3] - PAN_IN
+    ox = int(CARD[0] + PAD + (bw - im.width) / 2) - vx0        # 원문 자리는 예전과 같게
+    oy = CARD[1] + PAD - vy0
+    view_h = vy1 - vy0
+    canvas = Image.new("RGB", (vx1 - vx0, max(im.height + 2 * oy, view_h)), crop_img.getpixel((0, 0)))
+    canvas.paste(im, (ox, oy))
+    return {"canvas": canvas, "geo": {"s": s, "ox": ox, "oy": oy, "places": info["places"]},
+            "sx": vx0, "sy": vy0, "view_h": view_h}
+
+
+def tall_compose(bg: Image.Image, tv: Dict[str, Any], canvas: Image.Image, vy: int) -> Image.Image:
+    """캔버스의 vy 부터 한 화면을 카드 먹선 안쪽(둥근 모서리 그대로)에 붙이고 오른쪽에 스크롤 막대"""
+    img = bg.copy()
+    vh = tv["view_h"]
+    win = canvas.crop((0, vy, canvas.width, vy + vh))
+    mask = Image.new("L", win.size, 0)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, win.width - 1, win.height - 1), radius=PAN_R, fill=255)
+    img.paste(win, (tv["sx"], tv["sy"]), mask)
+    d = ImageDraw.Draw(img)
+    x, y0, y1 = CARD[2] - 22, CARD[1] + PAD, CARD[3] - PAD
+    d.rounded_rectangle((x, y0, x + 8, y1), radius=4, fill=(226, 224, 218))
+    th = max(40, (y1 - y0) * vh / canvas.height)
+    ty = y0 + (y1 - y0 - th) * (vy / max(1, canvas.height - vh))
+    d.rounded_rectangle((x, ty, x + 8, ty + th), radius=4, fill=T.PALETTE["ink"])
+    return img
+
+
+def frame_bg(job: Job, no: int, title: str, total: int = 20, first: int = 1) -> Image.Image:
+    """문항 화면의 바탕(키커·제목·카드) — 원문은 아직 안 붙인 것"""
     bg = T.BG_CYCLE[(no - 1) % len(T.BG_CYCLE)]
     img = T.paper(T.PALETTE[bg], seed=no)
     d = ImageDraw.Draw(img)
@@ -103,15 +162,7 @@ def frame(job: Job, no: int, title: str, total: int = 20, first: int = 1) -> Tup
     T.card(img, CARD)
     T.sparkle(d, CARD[2] - 26, CARD[1] - 34, 26, T.PALETTE["ink"])
     T.sparkle(d, CARD[2] + 26, CARD[1] + 4, 13, T.PALETTE["mustard"])
-    # 원문
-    crop_img = Image.open(job.boards / info["crop"]).convert("RGB")
-    bw, bh = CARD[2] - CARD[0] - 2 * PAD, CARD[3] - CARD[1] - 2 * PAD
-    s = min(bw / crop_img.width, bh / crop_img.height, 1.0)
-    im = crop_img.resize((max(1, int(crop_img.width * s)), max(1, int(crop_img.height * s))), Image.LANCZOS)
-    ox = int(CARD[0] + PAD + (bw - im.width) / 2)
-    oy = int(CARD[1] + PAD + (bh - im.height) / 2)
-    img.paste(im, (ox, oy))
-    return img, {"s": s, "ox": ox, "oy": oy, "places": info["places"]}
+    return img
 
 
 def _to_screen(geo: Dict[str, Any], place: Dict[str, Any], r: fitz.Rect) -> Tuple[float, float, float, float]:

@@ -1,0 +1,205 @@
+# SQLD(데이터 모델링의 이해 · SQL 기본 및 활용) 과목 발음 사전 — 공통 사전(studio/pronunciation.yaml)보다 이긴다.
+# 표기: 소리 (합성 직전에만 바뀌고 자막은 그대로). 낱말 뒤에 붙은 조사는 그대로 붙어 읽힌다(ROLLBACK이 → 롤백이).
+# 2026-11-13 SQLD 20회 대본에 자주 나오는 SQL 키워드·함수를 모았다. 밑줄 이름은 띄어 쓴 키로 (DENSE_RANK → "DENSE RANK").
+rules:
+  "NULL": 널
+  NULLS: 널스
+  NULLIF: 널이프
+  NVL2: 엔브이엘투
+  WHERE: 웨어
+  JOIN: 조인
+  Join: 조인
+  COUNT: 카운트
+  NOT: 낫
+  "NOT NULL": 낫 널
+  UNION: 유니온
+  SELECT: 셀렉트
+  ROLLBACK: 롤백
+  DELETE: 딜리트
+  OUTER: 아우터
+  ORDER: 오더
+  BY: 바이
+  HAVING: 해빙
+  "ON": 온
+  TRUNCATE: 트렁케이트
+  ROWNUM: 로우넘
+  ALL: 올
+  LEVEL: 레벨
+  INSERT: 인서트
+  "IN": 인
+  PRIOR: 프라이어
+  ROLLUP: 롤업
+  MINUS: 마이너스
+  Oracle: 오라클
+  UPDATE: 업데이트
+  COMMIT: 커밋
+  DROP: 드롭
+  RANK: 랭크
+  INNER: 이너
+  INTERSECT: 인터섹트
+  SUM: 썸
+  EXISTS: 이그지스츠
+  LEFT: 레프트
+  RIGHT: 라이트
+  FULL: 풀
+  CROSS: 크로스
+  NATURAL: 내추럴
+  USING: 유징
+  WITH: 위드
+  GROUP: 그룹
+  GROUPING: 그루핑
+  SETS: 세츠
+  CUBE: 큐브
+  ID: 아이디
+  TABLE: 테이블
+  "AND": 앤드
+  "OR": 오어
+  DEFAULT: 디폴트
+  RANGE: 레인지
+  ROWS: 로우즈
+  ROW: 로우
+  SAVEPOINT: 세이브포인트
+  CONNECT: 커넥트
+  INDEX: 인덱스
+  "ROW NUMBER": 로우 넘버
+  "DENSE RANK": 덴스 랭크
+  "TO": 투
+  MERGE: 머지
+  Merge: 머지
+  MATCHED: 매치드
+  PRECEDING: 프리시딩
+  FOLLOWING: 팔로잉
+  UNBOUNDED: 언바운디드
+  CURRENT: 커런트
+  SCAN: 스캔
+  UNKNOWN: 언노운
+  COALESCE: 코얼레스
+  SUBSTR: 서브스트링
+  INSTR: 인스트링
+  FROM: 프롬
+  START: 스타트
+  CASE: 케이스
+  WHEN: 웬
+  THEN: 덴
+  ELSE: 엘스
+  END: 엔드
+  BETWEEN: 비트윈
+  LIKE: 라이크
+  UNIQUE: 유니크
+  PRIMARY: 프라이머리
+  KEY: 키
+  CHECK: 체크
+  CONSTRAINTS: 컨스트레인츠
+  GRANT: 그랜트
+  REVOKE: 리보크
+  ROLE: 롤
+  "IS": 이즈
+  LAG: 래그
+  LEAD: 리드
+  ALTER: 얼터
+  CREATE: 크리에이트
+  RENAME: 리네임
+  MODIFY: 모디파이
+  SET: 셋
+  PARTITION: 파티션
+  OVER: 오버
+  SIBLINGS: 시블링스
+  CASCADE: 캐스케이드
+  Hash: 해시
+  HASH: 해시
+  REPLACE: 리플레이스
+  VARCHAR2: 바차투
+  CHAR: 차
+  DISTINCT: 디스팅트
+  COLUMN: 칼럼
+  OPTION: 옵션
+  View: 뷰
+  VIEW: 뷰
+  NTILE: 엔타일
+  "ANY": 애니
+  MAX: 맥스
+  MIN: 민
+  Sort: 소트
+  SORT: 소트
+  ROWID: 로우아이디
+  DECODE: 디코드
+  TREE: 트리
+  Tree: 트리
+  TRIM: 트림
+  LTRIM: 엘트림
+  RTRIM: 알트림
+  LPAD: 엘패드
+  RPAD: 알패드
+  FIRST: 퍼스트
+  LAST: 라스트
+  "FIRST VALUE": 퍼스트 밸류
+  "LAST VALUE": 라스트 밸류
+  "RATIO TO REPORT": 레이쇼 투 리포트
+  "PERCENT RANK": 퍼센트 랭크
+  "CUME DIST": 큠 디스트
+  "TO NUMBER": 투 넘버
+  "TO CHAR": 투 차
+  "TO DATE": 투 데이트
+  "ADD MONTHS": 애드 먼스
+  "MONTHS BETWEEN": 먼스 비트윈
+  "LAST DAY": 라스트 데이
+  "CONNECT BY ISLEAF": 커넥트 바이 이즈리프
+  "CONNECT BY ROOT": 커넥트 바이 루트
+  "SYS CONNECT BY PATH": 시스 커넥트 바이 패스
+  SYSDATE: 시스데이트
+  ROUND: 라운드
+  MOD: 모드
+  LENGTH: 렝스
+  AUTO: 오토
+  NESTED: 네스티드
+  LOOPS: 룹스
+  "AS": 애즈
+  DESC: 데스크
+  ASC: 애스크
+  BEGIN: 비긴
+  ACCESS: 액세스
+  CTAS: 씨타스
+  WINDOWING: 윈도잉
+  Barker: 바커
+  Server: 서버
+  Plus: 플러스
+  Single: 싱글
+  Type: 타입
+  Input: 인풋
+  Probe: 프로브
+  Build: 빌드
+  "FALSE": 폴스
+  "TRUE": 트루
+  PATH: 패스
+  SESSION: 세션
+  # 예제 테이블·칼럼 이름 (자주 나오는 것)
+  GRADE: 그레이드
+  SCORE: 스코어
+  REGION: 리전
+  SALES: 세일즈
+  STOCK: 스톡
+  ORDERS: 오더스
+  ITEM: 아이템
+  PRICE: 프라이스
+  CODE: 코드
+  TEAM: 팀
+  MEMBER: 멤버
+  PLAYER: 플레이어
+  EMAIL: 이메일
+  BONUS: 보너스
+  CHANNEL: 채널
+  PAY: 페이
+  PASS: 패스
+  FAIL: 페일
+  POINT: 포인트
+  PARENT: 페어런트
+  AGE: 에이지
+  DEPT: 뎁트
+  EMP: 엠프
+  GOLD: 골드
+  ADMIN: 어드민
+  "ON 절": "온 절"
+  "NOT IN": "낫인"
+  "NOT EXISTS": "낫 이그지스트"
+  # 소리대로 적기 (사용자 2026-11-13)
+  셉니다: 셈니다

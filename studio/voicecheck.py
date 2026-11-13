@@ -33,6 +33,10 @@ AI_PROMPT = """아래는 시험 해설 영상 내레이션(한국어 TTS)의 발
 - 기호: = → 는(같다), ≤ → 이하, ≥ → 이상, ≠ → 같지 않다, < > → 보다 작다·크다, + − × ÷ → 더하기 빼기 곱하기 나누기, ++ → 플러스 플러스, == → 같다, && → 앤드, || → 오어.
 - 키 조합의 + 는 더하기로 읽지 않는다: ⊞+D → 윈도우 키와 디, ⊞+Shift+S → 윈도우 키와 시프트 에스, Ctrl+C → 컨트롤 씨 (「윈도우 단축키」라고 하지 않는다).
 - 코드 호출은 괄호까지: super() → 슈퍼 괄호, this(x) → 디스 괄호 엑스, print("A") → 프린트 에이.
+- 영문·숫자 뒤에 띄어 쓴 조사는 앞말에 붙인다: ROLLBACK 이 → 롤백이, NULL 을 → 널을, SUM(수량) 이 → 썸 괄호 수량이, 20 과 30 → 이십과 삼십. 조사가 아닌 말(ROLLBACK 자체를)은 띄운 그대로.
+- 영문+숫자 이름은 붙여 읽는다: A1 → 에이일, S1 → 에스일, M3 → 엠삼. 단 소리가 겹치는 E2 는 이투(「이이」 금지).
+- 건 앞 숫자는 고유어 + 된소리로: 3건 → 세 껀, 5건 → 다섯 껀. 개·명·가지 앞도 고유어(두 개, 다섯 명).
+- [발음] 이 이미 한글로 맞게 읽히면 바꾸지 않는다(사람이 고친 표기를 되돌리지 않는다).
 - 문장 뜻 · 어순 · 조사는 바꾸지 않는다. 고칠 게 없으면 그대로 둔다.
 - 참고로 [대본] 은 원래 문장, [자막] 은 화면에 보이는 글이다(고치지 않는다).
 - 고친 발음에는 로마자(A~Z, a~z), 아라비아 숫자, 수식 기호가 하나도 남으면 안 된다 — 꼭 한글로 바꾼다.
@@ -68,6 +72,7 @@ def _tts(c: Dict[str, Any], it: Dict[str, Any]) -> str:
 def lines(job: Job) -> Dict[str, Any]:
     c = _ctx(job)
     checks = read_json(job.scripts / "voice_check.json", {}) or {}
+    cap_edits = read_json(job.scripts / "cap_edit.json", {}) or {}
     chapters: List[Dict[str, Any]] = []
     for ci, ch in enumerate(c["script"]["chapters"], start=1):
         chapters.append({"i": ci, "title": ch["title"], "quiz": ch.get("quiz"), "kind": ch.get("kind"), "lines": []})
@@ -80,6 +85,7 @@ def lines(job: Job) -> Dict[str, Any]:
             "edited": bool(mine), "stale": bool(c["fx"].get(it["id"])) and not mine,
             "ok": checks.get(it["id"]) == tts, "wav": line_wav(job, tts, c["voice"], c["speed"]).exists(),
             "left": bool(LEFTOVER.search(tts)),
+            "capEdited": bool(cap_edits.get(it["id"])) and cap_edits[it["id"]].get("orig") != it["cap"],
         })
     total = len(c["items"])
     return {"chapters": [x for x in chapters if x["lines"]], "total": total,
@@ -106,6 +112,44 @@ def save_line(job: Job, lid: str, tts: str, synth: bool = False) -> Dict[str, An
     return {"ok": True, "tts": tts, "edited": tts != auto, "wav": wav.exists()}
 
 
+def save_cap(job: Job, lid: str, cap: str) -> Dict[str, Any]:
+    """자막(화면 글)만 고친다 — 조사·동격 덧붙이기 같은 작은 손질. 발음·합성은 그대로.
+    지금 쓰는 대본(script.edit.json 또는 script.json)에 넣고, 문항 줄이면 script/qNN.json 에도 넣어
+    ③ 회차 보기에서 저장(대본 재조립)해도 지워지지 않게 한다. 영상에는 「음성 고친 판 굽기」(s3→s5)에서 반영."""
+    cap = "\n".join(_norm(x) for x in (cap or "").splitlines() if x.strip())
+    edit = job.dir / "script.edit.json"
+    path = edit if read_json(edit) else job.dir / "script.json"
+    script = read_json(path)
+    if not script:
+        raise ValueError("대본이 없습니다 — 1 대본을 먼저 만드세요")
+    n = 0
+    for ch in script["chapters"]:
+        for sc in ch["scenes"]:
+            for i, ln in enumerate(sc["lines"]):
+                n += 1
+                if f"L{n:03d}" != lid:
+                    continue
+                # 손으로 고친 자막 표시용 — 처음 자막(orig)을 기억, 원래대로 돌리면 지운다
+                ce_path = job.scripts / "cap_edit.json"
+                ce = read_json(ce_path, {}) or {}
+                orig = (ce.get(lid) or {}).get("orig", (ln.get("cap") or ln.get("say") or "").strip())
+                if cap == orig or not cap:
+                    ce.pop(lid, None)
+                else:
+                    ce[lid] = {"orig": orig}
+                write_json(ce_path, ce)
+                ln["cap"] = cap
+                write_json(path, script)
+                if ch.get("quiz") and sc.get("part"):
+                    qp = job.scripts / f"q{int(ch['quiz']):02d}.json"
+                    q = read_json(qp)
+                    if q and i < len(q.get(sc["part"]) or []):
+                        q[sc["part"]][i]["cap"] = cap
+                        write_json(qp, q)
+                return {"ok": True, "cap": cap or (ln.get("say") or "").strip(), "capEdited": lid in ce}
+    raise KeyError(f"줄이 없습니다: {lid}")
+
+
 def wav_of(job: Job, lid: str):
     c = _ctx(job)
     return line_wav(job, _tts(c, _item(c, lid)), c["voice"], c["speed"])
@@ -122,7 +166,7 @@ def check(job: Job, lid: str, tts: str, ok: bool) -> Dict[str, Any]:
     return {"ok": True}
 
 
-def ai_fix(job: Job, ids: List[str], current: Dict[str, str]) -> Dict[str, str]:
+def ai_fix(job: Job, ids: List[str], current: Dict[str, str], wait: bool = False) -> Dict[str, str]:
     """Claude 에게 발음 교정을 묻는다(저장하지 않음 — 화면에서 보고 적용). 영문·숫자·기호가 남은 줄은 한 번 더."""
     c = _ctx(job)
     items = [_item(c, i) for i in ids]
@@ -130,7 +174,7 @@ def ai_fix(job: Job, ids: List[str], current: Dict[str, str]) -> Dict[str, str]:
                    for it in items)
 
     def stop(wake):
-        if wake:
+        if wake and not wait:                      # 화면(버튼)은 바로 알리고, 생산(s3·vfix)은 한도가 풀릴 때까지 기다린다
             raise claude.ClaudeError("Claude 사용 한도에 걸렸습니다 — 나중에 다시 눌러 주세요")
 
     out: Dict[str, str] = {}
@@ -150,6 +194,74 @@ def ai_fix(job: Job, ids: List[str], current: Dict[str, str]) -> Dict[str, str]:
             break
         extra = f"\n(앞 답에 로마자 · 숫자 · 기호가 남았거나 빠진 줄이 있었다: {', '.join(bad)} — 다시 전부 한글로.)\n"
     return out
+
+
+def ai_fix_all(job: Job, workers: int = 4, redo: bool = False) -> int:
+    """s3 앞에서 모든 줄을 장마다 AI 발음 교정 → voice_fix.json 에 저장(「이 장 전부 AI 교정」을 생산에 넣은 것).
+
+    손으로 고친 줄은 건드리지 않는다. 한 번 교정한 줄은 script/voice_ai.json {줄ID: say} 로 기억해
+    대본이 바뀌지 않으면 다시 묻지 않는다. 고친 줄 수를 돌려준다. 켜기: job.json·시리즈 "voice_ai": true
+    redo=True(음성 체크 「한 번에 고치고 굽기」): 「확인」을 누른 줄·손으로 고친 줄만 빼고 전부 지금 규칙으로 다시 묻는다.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+    from .log import log
+    c = _ctx(job)
+    done_path = job.scripts / "voice_ai.json"
+    done = read_json(done_path, {}) or {}
+    fx = c["fx"]
+    checks = read_json(job.scripts / "voice_check.json", {}) or {}
+    todo: Dict[int, List[str]] = {}
+    for it in c["items"]:
+        f = fx.get(it["id"]) or {}
+        hand = f.get("tts") and f.get("src") == it["say"] and f.get("by") != "ai"
+        if hand or (not redo and done.get(it["id"]) == it["say"]):
+            continue
+        if redo and checks.get(it["id"]) == _tts(c, it):        # 사람이 듣고 「확인」한 줄은 그대로
+            continue
+        todo.setdefault(it["chapter"], []).append(it["id"])
+    if not todo:
+        log("s3 AI 발음 교정: 새로 볼 줄 없음")
+        return 0
+    log(f"s3 AI 발음 교정: {sum(len(v) for v in todo.values())}줄 ({len(todo)}장)")
+
+    def ask(ids: List[str]) -> Dict[str, str]:
+        try:
+            # 다시 물을 때는 지금 규칙의 자동 발음을 바탕으로(예전 AI 답을 그대로 베끼지 않게)
+            cur = {i: engine.spoken(_item(c, i)["say"], c["subject"]) for i in ids} if redo else {}
+            return ai_fix(job, ids, cur, wait=True)
+        except claude.ClaudeError:
+            raise                                  # 한도 — s3 를 멈춘다
+        except Exception as e:                     # 한 장이 실패해도 다른 장은 살리고, 그 장은 다음 판에 다시
+            log(f"  · AI 교정 한 장 실패: {str(e)[:120]}")
+            return {}
+
+    got: Dict[str, str] = {}
+    for attempt in range(2):                       # 답이 빠졌거나 영문·숫자가 남은 줄만 한 번 더
+        with ThreadPoolExecutor(workers) as pool:
+            for r in pool.map(ask, [ids for ids in todo.values() if ids]):
+                got.update({k: v for k, v in r.items() if v and not LEFTOVER.search(v)})
+        todo = {ch: [i for i in ids if i not in got] for ch, ids in todo.items()}
+        if not any(todo.values()):
+            break
+    fx = fixes(job)            # 교정하는 동안 화면에서 손으로 고친 것이 있으면 그것을 살린다
+    n = 0
+    for lid, tts in got.items():
+        it = _item(c, lid)
+        f = fx.get(lid) or {}
+        if f.get("tts") and f.get("src") == it["say"] and f.get("by") != "ai":
+            continue
+        tts = _norm(tts)
+        if tts != engine.spoken(it["say"], c["subject"]):
+            fx[lid] = {"tts": tts, "src": it["say"], "by": "ai"}
+            n += 1
+        elif f.get("by") == "ai":
+            fx.pop(lid, None)
+        done[lid] = it["say"]                      # 답을 제대로 받은 줄만 「끝」 — 못 받은 줄은 다음 s3 에서 다시
+    write_json(job.scripts / "voice_fix.json", fx)
+    write_json(done_path, done)
+    left = sum(len(v) for v in todo.values())
+    log(f"s3 AI 발음 교정: {n}줄 고침" + (f" · 답을 못 받은 {left}줄은 자동 발음 그대로(다음 s3 에서 다시 묻습니다)" if left else ""))
+    return n
 
 
 # ── 발음 사전 ────────────────────────────────────────────────────────────────

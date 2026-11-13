@@ -21,6 +21,8 @@ from .log import log
 
 ANIM = (0.34, 0.67, 1.0)
 ANIM_STEP = 0.12
+PAN = (0.17, 0.33, 0.5, 0.67, 0.83, 1.0)     # 긴 문항 화면 이동(0.5초) — 판서도 같이 그려진다
+PAN_STEP = 0.1
 CIRCLED = "①②③④⑤"
 
 
@@ -81,7 +83,12 @@ def run(job: Job, force: bool = False) -> List[Dict[str, Any]]:
         answer_t = scenes[answer_scene]["start"]
         base_key = ["q", job.id, no, sch["title"]]
         lo, hi = m.get("range") or (1, 20)
-        base_img, geo = boards.frame(job, no, sch["title"], total=hi, first=lo)
+        tv = boards.tall_view(job, no) if job.setting("pan_tall") else None
+        if tv:          # 긴 문항: 크게 키운 원문(캔버스)을 판서 따라 위아래로
+            base_img, geo = boards.frame_bg(job, no, sch["title"], total=hi, first=lo), tv["geo"]
+            base_key = base_key + ["pan3", tv["geo"]["s"]]      # pan3: 카드 안쪽 전체를 흰 바탕 한 장으로
+        else:
+            base_img, geo = boards.frame(job, no, sch["title"], total=hi, first=lo)
         # 판서 위치 찾기
         placed = []
         for mk in marks:
@@ -93,31 +100,54 @@ def run(job: Job, force: bool = False) -> List[Dict[str, Any]]:
 
         idx_of = {id(p): i for i, p in enumerate(placed)}
 
-        def render(done: List[Dict[str, Any]], partial: List[Dict[str, Any]], prog: float, badge: bool):
+        def render(done: List[Dict[str, Any]], partial: List[Dict[str, Any]], prog: float, badge: bool, vy: int = 0):
             def draw():
-                img = base_img.copy()
+                img = (tv["canvas"] if tv else base_img).copy()
                 for p in done:
                     T.draw_mark(img, p["kind"], p["box"], 1.0, seed=no * 100 + idx_of[id(p)])
                 for p in partial:
                     T.draw_mark(img, p["kind"], p["box"], prog, seed=no * 100 + idx_of[id(p)])
+                if tv:
+                    img = boards.tall_compose(base_img, tv, img, vy)
                 if badge:
                     _badge(img, answers)
                 return img
             return draw
 
+        def aim(boxes: List[Tuple[float, float, float, float]], vy: int) -> int:
+            """그 표시들이 화면 안에 들면 그대로, 아니면 보이게 옮긴 vy"""
+            if not tv or not boxes:
+                return vy
+            vh, top_max = tv["view_h"], tv["canvas"].height - tv["view_h"]
+            top, bot = min(b[1] for b in boxes), max(b[3] for b in boxes)
+            if top >= vy + 24 and bot <= vy + vh - 24:
+                return vy
+            want = (top + bot) / 2 - vh / 2 if bot - top < vh - 80 else top - 40
+            return int(max(0, min(top_max, want)))
+
+        ans_box = []
+        if tv:
+            loc = boards.locate(doc, geo, {"choice": answers[0]})
+            ans_box = [loc["screen"]] if loc else []
         events = sorted({p["t"] for p in placed} | {answer_t})
+        vy = 0
         seq.append((sv.save(base_key + ["base"], render([], [], 1.0, False)), c_start))
         for t in events:
             new = [p for p in placed if p["t"] == t]
             done = [p for p in placed if p["t"] < t]
             badge = t >= answer_t
             key_done = [[p["kind"], p["target"]] for p in done]
-            if new:
-                for k, prog in enumerate(ANIM):
-                    key = base_key + [key_done, [[p["kind"], p["target"]] for p in new], prog, badge]
-                    seq.append((sv.save(key, render(done, new, prog, badge)), t + k * ANIM_STEP))
+            to = aim([p["box"] for p in new] or (ans_box if t == answer_t else []), vy)
+            steps = PAN if to != vy else ANIM
+            if new or to != vy:
+                for k, prog in enumerate(steps):
+                    e = prog * prog * (3 - 2 * prog)
+                    v = int(round(vy + (to - vy) * e))
+                    key = base_key + [key_done, [[p["kind"], p["target"]] for p in new], prog, badge] + ([v] if tv else [])
+                    seq.append((sv.save(key, render(done, new, prog, badge, v)), t + k * (PAN_STEP if steps is PAN else ANIM_STEP)))
             else:
-                seq.append((sv.save(base_key + [key_done, badge], render(done, [], 1.0, badge)), t))
+                seq.append((sv.save(base_key + [key_done, badge] + ([vy] if tv else []), render(done, [], 1.0, badge, vy)), t))
+            vy = to
     # 시작 시각 → 길이
     seq.sort(key=lambda x: x[1])
     frames = []

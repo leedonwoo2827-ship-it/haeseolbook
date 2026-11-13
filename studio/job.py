@@ -29,7 +29,8 @@ from . import JOBS, ROOT
 
 _lock = threading.Lock()
 
-SUBJECT_IDS = {"컴퓨터일반": "computer", "컴퓨터 일반": "computer", "스프레드시트 일반": "spreadsheet", "정보보호론": "infosec", "국어": "korean", "영어": "english", "한국사": "history"}
+SUBJECT_IDS = {"컴퓨터일반": "computer", "컴퓨터 일반": "computer", "스프레드시트 일반": "spreadsheet", "정보보호론": "infosec", "국어": "korean", "영어": "english", "한국사": "history",
+               "데이터 모델링의 이해": "sqld", "SQL 기본 및 활용": "sqld"}
 
 
 def read_json(p: Path, default: Any = None) -> Any:
@@ -144,6 +145,12 @@ def mock_series() -> List[Dict[str, Any]]:
 
     textbook  교재(인쇄·한글)에 실리는 회차 — 나머지는 이북(e-test) 회차. 어디에 실리는지만 정한다.
     public    유튜브 공개 회차 — 나머지는 일부공개(링크로만). 교재/이북과 따로 정한다.
+    split     영상 나누기 — "subject"(기본, 과목마다 한 편) · "round"(회차 통째 한 편 = 1강, 예: SQLD 50문항)
+    subject_all  split=round 일 때 과목 칸에 쓰는 이름 (기본 "전 과목")
+    per_part  과목 안에서 N문항씩 한 편 (SQLD 10 = 예전 04-2 처럼 5편)
+    pan_tall  세로로 긴 문항(표·SQL)을 크게 키워 판서 따라 위아래로 (frames.py · boards.tall_view)
+    no_dest   교재/이북 구분이 없는 시리즈(SQLD) — 화면·제목에 「이북」「교재」를 쓰지 않는다
+    voice_ai  s3 합성 전에 모든 줄을 AI 발음 교정(voicecheck.ai_fix_all) — 음성 체크는 듣고 확인만
     """
     return read_json(MOCKS, []) or []
 
@@ -160,9 +167,11 @@ def mock_label(series: Dict[str, Any], n: int) -> str:
     return f"{group.index(n) + 1 if n in group else n:02d}회"
 
 
-def mock_parts(book: Path, rc: str) -> List[Dict[str, Any]]:
+def mock_parts(book: Path, rc: str, split: str = "subject", subject_all: str = "", per_part: int = 0) -> List[Dict[str, Any]]:
     """회차의 과목 구간 — 07/<rc>/script/qNN.json 의 subject 가 바뀌는 곳에서 나눈다.
-    [{part: 1, subject: "컴퓨터 일반", range: [1, 20]}, {part: 2, …, range: [21, 40]}]"""
+    [{part: 1, subject: "컴퓨터 일반", range: [1, 20]}, {part: 2, …, range: [21, 40]}]
+    split="round" 면 회차 통째 한 구간 [{part: 1, subject: subject_all, range: [1, 50]}]
+    per_part=N 이면 과목 안에서 N문항씩 더 나눈다 (SQLD: 1~10 · 11~20 · … · 41~50, 과목 경계는 지킴)"""
     d = Path(book) / "07" / rc / "script"
     items = sorted(d.glob("q??.json"))
     if not items:
@@ -173,7 +182,31 @@ def mock_parts(book: Path, rc: str) -> List[Dict[str, Any]]:
         if not parts or parts[-1]["subject"] != q.get("subject"):
             parts.append({"part": len(parts) + 1, "subject": q.get("subject") or "", "range": [q["no"], q["no"]]})
         parts[-1]["range"][1] = q["no"]
+    if split == "round" and parts:
+        return [{"part": 1, "subject": subject_all or "전 과목", "range": [parts[0]["range"][0], parts[-1]["range"][1]]}]
+    if per_part > 0:
+        out: List[Dict[str, Any]] = []
+        for sp in parts:
+            lo, hi = sp["range"]
+            for a in range(lo, hi + 1, per_part):
+                out.append({"part": len(out) + 1, "subject": sp["subject"], "range": [a, min(a + per_part - 1, hi)]})
+        return out
     return parts
+
+
+def series_parts(series: Dict[str, Any], rc: str) -> List[Dict[str, Any]]:
+    """시리즈 설정(split·subject_all)대로 나눈 회차 구간"""
+    return mock_parts(Path(series["book"]), rc, series.get("split") or "subject", series.get("subject_all") or "",
+                      int(series.get("per_part") or 0))
+
+
+def mock_title(series: Dict[str, Any], rl: str, pinfo: Dict[str, Any]) -> str:
+    """작업 제목 — 과목을 N문항씩 쪼갠 시리즈(SQLD)는 번호 범위를 넣어 편끼리 구별"""
+    head = f"{series.get('short') or series['exam']} 필기 모의고사 {rl}"
+    if int(series.get("per_part") or 0) > 0:
+        lo, hi = pinfo["range"]
+        return f"{head} {lo}~{hi}번 {pinfo['subject']} 해설"
+    return f"{head} {pinfo['subject']} 해설"
 
 
 def create_mock(code: str, rc: str, part: int, voice: str = "F1", model: str = "opus") -> Job:
@@ -181,7 +214,7 @@ def create_mock(code: str, rc: str, part: int, voice: str = "F1", model: str = "
     if not series:
         raise ValueError(f"_assets/mocks.json 에 {code} 시리즈가 없습니다 (python -m studio new-mock …)")
     book = Path(series["book"])
-    pinfo = next((p for p in mock_parts(book, rc) if p["part"] == part), None)
+    pinfo = next((p for p in series_parts(series, rc) if p["part"] == part), None)
     if not pinfo:
         raise ValueError(f"{rc} 에 {part}과목이 없습니다")
     job_id = f"{code}-{rc}-p{part}"
@@ -192,7 +225,7 @@ def create_mock(code: str, rc: str, part: int, voice: str = "F1", model: str = "
         meta = read_json(d / "job.json")
         if meta.get("round_label") != rl:
             meta["round_label"] = rl
-            meta["title"] = f"{series.get('short') or series['exam']} 필기 모의고사 {rl} {pinfo['subject']} 해설"
+            meta["title"] = mock_title(series, rl, pinfo)
             write_json(d / "job.json", meta)
     else:
         src = book / "07" / rc
@@ -200,11 +233,14 @@ def create_mock(code: str, rc: str, part: int, voice: str = "F1", model: str = "
             "id": job_id, "kind": "mock", "code": code, "series": series["name"],
             "exam": series["exam"], "short": series.get("short") or series["exam"], "year": int(series.get("year") or 0),
             "subject": pinfo["subject"], "round": rc, "round_label": rl, "part": part, "range": pinfo["range"],
-            "booklet": "", "title": f"{series.get('short') or series['exam']} 필기 모의고사 {rl} {pinfo['subject']} 해설",
+            "booklet": "", "title": mock_title(series, rl, pinfo),
             "paper": str(src / "exam.pdf"), "answers": str(src / "answers.json"), "scriptSrc": str(src / "script"),
             "dest": "textbook" if n in (series.get("textbook") or []) else "ebook",
             "visibility": "public" if n in (series.get("public") or []) else "unlisted",
             "voice": voice, "speed": 1.0, "model": model,
+            **({"pan_tall": True} if series.get("pan_tall") else {}),
+            **({"no_dest": True} if series.get("no_dest") else {}),
+            **({"voice_ai": True} if series.get("voice_ai") else {}),
         })
     return Job(job_id)
 

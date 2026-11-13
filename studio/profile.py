@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-NUM_KO = {20: "스무", 10: "열", 40: "마흔"}
+NUM_KO = {20: "스무", 10: "열", 40: "마흔", 50: "쉰"}
 
 
 def texts(m: Dict[str, Any]) -> Dict[str, Any]:
@@ -43,6 +43,8 @@ def _mock(m: Dict[str, Any]) -> Dict[str, Any]:
     lo, hi = m["range"]
     n = hi - lo + 1
     n_ko = NUM_KO.get(n, str(n))
+    if m.get("no_dest"):
+        return _mock_plain(m, short, rl, lo, hi, n, n_ko)
     return {
         "intro_say": f"{short} 필기 모의고사 {rl}, {subj} {n_ko} 문항을 처음부터 끝까지 풀어 보겠습니다.",
         "intro_cap": f"{short} 모의고사 {rl} · {subj} {n}문항",
@@ -54,9 +56,35 @@ def _mock(m: Dict[str, Any]) -> Dict[str, Any]:
         "yt_title": f"{short} 필기 모의고사{'' if m.get('dest') == 'textbook' else '(이북)'} {rl} {subj} 해설 | {lo}~{hi}번 {n}문항 풀이 (문항별 챕터)",
         "yt_hook": f"{short} 필기 모의고사 {rl} {subj} {n}문항을 시험지 그대로 보며 한 문항씩 풀이합니다.",
         "yt_basis": "자체 집필 모의고사입니다. 시험지·정답·해설은 교재와 해설북(이북)에 있습니다.",
-        "tags": [short, exam, f"{short} 필기", f"{short} {subj}", "컴활 모의고사", "컴활 2급 필기 기출", "필기 해설"],
+        "tags": [short, exam, f"{short} 필기", f"{short} {subj}", f"{short.split()[0]} 모의고사", f"{short} 필기 기출", "필기 해설"],
         "thumb_line1": f"{rl} {subj}", "thumb_line2": f"모의고사 {n}문항 해설", "thumb_num": rl.replace("회", ""),
         "thumb_tag": f"{short} 필기 · 문항별 챕터",
+        "playlist": f"{short} 필기 모의고사 해설",
+        "prompt_role": f"{exam} 시험 전문 강사",
+        "prompt_head": f"{short} 필기 모의고사 {rl} {subj} {{no}}번",
+        "prompt_basis": "정답",
+    }
+
+
+def _mock_plain(m: Dict[str, Any], short: str, rl: str, lo: int, hi: int, n: int, n_ko: str) -> Dict[str, Any]:
+    """교재/이북 구분 없는 시리즈(SQLD) — 과목을 10문항씩 나눠 편마다 번호 범위로 구별. 「이북」이라는 말을 쓰지 않는다"""
+    subj, exam = m["subject"], m["exam"]
+    rn = rl[:-1].lstrip("0") + "회" if rl.endswith("회") and rl[:-1].isdigit() else rl   # 자막·낭독은 「1회」(01회 X)
+    return {
+        "intro_say": f"{short} 필기 모의고사 {rn}, {subj} {n_ko} 문항을 풀어 보겠습니다.",
+        "intro_cap": f"{short} 모의고사 {rn} · {subj} {lo}~{hi}문항",
+        "outro_say": f"이것으로 {rn} {subj} {n_ko} 문항 해설을 마칩니다.",
+        "outro_cap": f"{lo}~{hi}문항 해설 끝",
+        "title_big": f"{rl} {lo}~{hi}번", "title_second": f"{short} 모의고사 · {subj}",
+        "title_small": f"{n}문항 해설 · 문항별 챕터",
+        "title_num": rl.replace("회", ""),
+        "yt_title": f"{short} 필기 모의고사 {rl} {lo}~{hi}번 {subj} 해설 | {n}문항 풀이 (문항별 챕터)",
+        "yt_hook": f"{short} 필기 모의고사 {rl} {lo}~{hi}번({subj})을 시험지 그대로 보며 한 문항씩 풀이합니다.",
+        "yt_basis": "자체 집필 모의고사입니다.",
+        "tags": [short, exam, f"{short} 필기", f"{short} {subj}", f"{short} 모의고사", f"{short} 기출", "필기 해설"],
+        "thumb_big": f"{lo}~{hi}번", "thumb_line1": f"{rl} {lo}~{hi}번", "thumb_line2": subj,
+        "thumb_num": rl.replace("회", ""),
+        "thumb_tag": f"{short} 필기 모의고사 {rl}",
         "playlist": f"{short} 필기 모의고사 해설",
         "prompt_role": f"{exam} 시험 전문 강사",
         "prompt_head": f"{short} 필기 모의고사 {rl} {subj} {{no}}번",

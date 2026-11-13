@@ -24,8 +24,12 @@ def run(job: Job, force: bool = False) -> Path:
     yr = tx["thumb_num"]
     fy = T.font(T.HEAVY, 210)
     d.text((990 - d.textlength(yr, font=fy) / 2, 270), yr, font=fy, fill=T.PALETTE["mustard"])
-    d.text((70, 150), m["subject"], font=T.font(T.HEAVY, 128), fill=(255, 255, 255))
-    d.text((74, 310), tx["thumb_line2"], font=T.font(T.BOLD, 72), fill=T.PALETTE["mustard"])
+    d.text((70, 150), tx.get("thumb_big") or m["subject"], font=T.font(T.HEAVY, 128), fill=(255, 255, 255))
+    l2 = tx["thumb_line2"]
+    sz = 72
+    while sz > 48 and d.textlength(l2, font=T.font(T.BOLD, sz)) > 640:     # 주황 덩어리에 닿지 않게
+        sz -= 4
+    d.text((74, 310 + (72 - sz) // 2), l2, font=T.font(T.BOLD, sz), fill=T.PALETTE["mustard"])
     T.wavy(d, 76, 76 + 330, 410, T.PALETTE["mustard"], amp=6, period=30, width=7)
     tag = tx["thumb_tag"]
     f = T.font(T.BOLD, 38)

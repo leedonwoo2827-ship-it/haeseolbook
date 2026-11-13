@@ -73,12 +73,67 @@ def pmap_for(subject: Optional[str] = None):
     return pm
 
 
+# 영문·숫자·괄호 뒤에 띄어 쓴 조사(대본이 「ROLLBACK 이」「20 과」처럼 띄움)는 붙여 읽는다 — 「롤백 이」로 끊기지 않게
+_PARTICLE_GAP = re.compile(
+    r"(?<=[A-Za-z0-9)\]])\s+(이라서|이라면|이라도|이라|이지만|이어서|이어야|이었|라서|라면|라도|이라는|이란|이다|입니다|이고|이며|이면|이므로|이나|에서는|에서|에게|에는|으로는|으로|로는|와는|과는|"
+    r"에서도|에만|에도|과도|와도|이나|이랑도|인|으로도|으로만|로도|로만|이라고|라고|이랑|랑|한테|께서|까지|부터|보다|처럼|만큼|라는|란|이|가|은|는|을|를|의|에|와|과|로|도|만)(?=[\s,.?!·)]|$)")
+
+
+def join_particles(text: str) -> str:
+    return _PARTICLE_GAP.sub(r"\1", text or "")
+
+
+# 영문+숫자 이름(A1 · S1 · SQL1 · C01)은 한 낱말로 붙여 읽는다 — 시트 과목의 셀 주소는 formula.py 가 따로 읽는다
+_UNDERSCORE = re.compile(r"(?<=[A-Za-z0-9])_(?=[A-Za-z0-9])")
+_NAME_NUM = re.compile(r"(?<![A-Za-z0-9_])([A-Z]{1,4})(\d{1,3})(?![A-Za-z0-9_])")
+
+
+_NUM_COPULA = re.compile(r"(?<![\d.,A-Za-z])(\d{1,4})(?=인(?:\s|[,.]|$))")
+_ONE_LETTER = re.compile(r"(?<![A-Za-z0-9_+])[A-Z](?![A-Za-z0-9_+])")
+
+
+def _spell1(c: str) -> str:
+    from .pronunciation import _spell_acronym
+    return _spell_acronym(c)
+
+
+def _name_num(m: "re.Match[str]", rules: Dict[str, str]) -> str:
+    if m.group(0) in rules:                                # 사전에 있으면(NVL2 → 엔브이엘투) 사전대로
+        return m.group(0)
+    from .numbers import sino
+    from .pronunciation import _spell_acronym
+    letters, digits = m.group(1), m.group(2)
+    say = rules.get(letters) or _spell_acronym(letters)
+    num = " ".join(sino(int(c)) for c in digits) if digits.startswith("0") and len(digits) > 1 else sino(int(digits))
+    if say.endswith("이") and digits == "2":               # E2 → 「이이」로 뭉개지지 않게 「이투」(사용자 2026-11-13)
+        num = "투"
+    return say + num.replace(" ", "")
+
+
+CODE_SUBJECTS = {"sqld"}      # 대본이 「ROLLBACK 이」처럼 영문 뒤 조사를 띄우는 과목 (job.SUBJECT_IDS 값)
+
+
+def _code_subject(subject: Optional[str]) -> bool:
+    from ..job import SUBJECT_IDS
+    return bool(subject) and SUBJECT_IDS.get(subject, subject) in CODE_SUBJECTS
+
+
 def spoken(text: str, subject: Optional[str] = None) -> str:
     """실제로 읽는 소리 — 수식·셀 주소(formula.py) → 사전 + 모르는 영문 약어 철자 + 연도·단위 숫자"""
     from .formula import speak
     from .numbers import speak_numbers                     # 01회·-20·비트열·16진수·⊞ 키 조합(studio/tts/numbers.py)
     sheet = bool(subject) and "스프레드시트" in subject       # 맨 셀 주소(D3)는 시트 과목에서만 읽는다
-    return pmap_for(subject).apply(speak_numbers(speak(text, sheet=sheet)), spell_unknown_acronyms=True, convert_years=True)
+    pm = pmap_for(subject)
+    if _code_subject(subject):                              # SQLD — 영문 키워드가 많은 과목만(컴활 발음은 그대로)
+        text = join_particles(text)
+        text = _UNDERSCORE.sub(" ", text)                  # DENSE_RANK → DENSE RANK (밑줄은 읽지 않는다)
+        text = _NAME_NUM.sub(lambda m: _name_num(m, pm.rules), text)
+        text = _ONE_LETTER.sub(lambda m: _spell1(m.group(0)), text)   # 테이블 A · 보기 B → 에이 · 비
+        from .numbers import speak_native
+        text = speak_native(text)                           # 3건 → 세 건 · 2개 → 두 개
+        from .numbers import sino
+        text = _NUM_COPULA.sub(lambda m: sino(int(m.group(1))), text)  # 부서코드가 20인 → 이십인
+    return pm.apply(speak_numbers(speak(text, sheet=sheet)), spell_unknown_acronyms=True, convert_years=True)
 
 
 def missing() -> List[str]:

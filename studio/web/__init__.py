@@ -65,20 +65,27 @@ def _series(name: str) -> Optional[Dict[str, Any]]:
 
 def mock_rows(series: Dict[str, Any]) -> List[Dict[str, Any]]:
     """모의고사 표: 회차 × 과목(20문항) — 칸마다 영상 한 편·이북 한 권. 공개 범위는 교재(공개)/이북(일부공개)"""
-    from ..job import mock_label, mock_parts
+    from ..job import mock_label, series_parts
     out = []
+    whole = series.get("split") == "round"          # 회차 통째 한 편(SQLD) — 한 줄 = 1회
     public, textbook = set(series.get("public") or []), set(series.get("textbook") or [])
     for n in series.get("rounds") or []:
         rc = f"m{n:02d}"
         try:
-            parts = mock_parts(Path(series["book"]), rc)
+            parts = series_parts(series, rc)
         except FileNotFoundError:
             continue
         for p in parts:
             jid = f"{series['code']}-{rc}-p{p['part']}"
             rl, dest = mock_label(series, n), "교재" if n in textbook else "이북"
-            r: Dict[str, Any] = {"key": jid, "id": jid, "year": f"{dest} {rl}", "booklet": p["subject"],
-                                 "label": f"{dest} {rl} · {p['subject']} {p['range'][0]}~{p['range'][1]}번",
+            lo, hi = p["range"]
+            plain = whole or series.get("no_dest")        # 교재/이북 구분 없는 시리즈(SQLD)는 「이북」을 안 붙인다
+            r: Dict[str, Any] = {"key": jid, "id": jid, "year": rl if plain else f"{dest} {rl}",
+                                 "booklet": "" if whole else p["subject"], "qTotal": hi - lo + 1,
+                                 "noDest": bool(series.get("no_dest")),
+                                 "label": f"{rl} · {lo}~{hi}번" if whole
+                                 else f"{rl} · {lo}~{hi}번 {p['subject']}" if plain
+                                 else f"{dest} {rl} · {p['subject']} {lo}~{hi}번",
                                  "examDate": dest, "dest": dest,
                                  "files": [k for k in (MOCK_FILES["교재" if dest == "교재" else "이북"])
                                            if _mock_file(series, rc, k)],
@@ -214,7 +221,7 @@ def create_app():
         rs = rows(subject)
         return {"subjects": subjects, "rows": rs, "running": running(), "tools": tools(),
                 "totals": {
-                    "rounds": len(rs), "script": sum(1 for r in rs if r.get("script") == 20),
+                    "rounds": len(rs), "script": sum(1 for r in rs if r.get("script") == (r.get("qTotal") or 20)),
                     "marks": sum(1 for r in rs if r.get("marksDone")),
                     "voice": sum(1 for r in rs if r.get("minutes")),
                     "video": sum(1 for r in rs if r.get("video")),
@@ -229,7 +236,7 @@ def create_app():
         global _proc, _desc
         items: List[str] = body.get("items") or []
         stages: List[str] = body.get("stages") or []
-        ok = {"s0", "s1", "s2", "s3", "s4", "s5", "post", "link", "aside"}
+        ok = {"s0", "s1", "s2", "s3", "s4", "s5", "vfix", "post", "link", "aside"}
         if not items or not stages or any(s not in ok for s in stages):
             raise HTTPException(400, "회차와 단계를 고르세요")
         with _lock:
@@ -446,6 +453,11 @@ def create_app():
         from .. import voicecheck
         return vc(voicecheck.save_line, job_or_404(job_id), str(body["id"]), str(body.get("tts", "")), bool(body.get("synth")))
 
+    @app.post("/api/jobs/{job_id}/voice/cap")
+    def voice_cap(job_id: str, body: Dict[str, Any] = Body(...)):
+        from .. import voicecheck
+        return vc(voicecheck.save_cap, job_or_404(job_id), str(body["id"]), str(body.get("cap", "")))
+
     @app.post("/api/jobs/{job_id}/voice/ai")
     def voice_ai(job_id: str, body: Dict[str, Any] = Body(...)):
         from .. import voicecheck
@@ -525,6 +537,15 @@ def create_app():
                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             _desc = f"{series['name']} · 교재 한글 만들기"
         return {"ok": True, "running": _desc}
+
+    @app.post("/api/jobs/{job_id}/folder")
+    def job_folder(job_id: str):
+        """완성 영상 폴더(out/)를 탐색기로 연다 — 파일 시각으로 어느 판이 구워졌는지 본다"""
+        d = job_or_404(job_id).dir / "out"
+        if not d.is_dir():
+            raise HTTPException(404, "아직 구운 영상이 없습니다")
+        os.startfile(str(d))  # type: ignore[attr-defined]
+        return {"ok": True, "path": str(d)}
 
     @app.post("/api/mock/folder")
     def mock_folder(body: Dict[str, Any] = Body(default={})):

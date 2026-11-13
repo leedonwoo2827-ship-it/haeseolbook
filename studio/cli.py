@@ -41,6 +41,9 @@ def run_stage(job, stage: str, force: bool = False, only: Optional[List[int]] = 
     elif stage == "s2":
         marks.run(job, force, only)
     elif stage == "s3":
+        if job.setting("voice_ai"):                  # 합성 전에 모든 줄을 AI 발음 교정(SQLD)
+            from . import voicecheck
+            voicecheck.ai_fix_all(job)
         voice.run(job, force)
     elif stage == "s4":
         frames.run(job, force)
@@ -100,6 +103,12 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.add_argument("--rounds", required=True, help="예: 1-10")
     p.add_argument("--textbook", default="", help="교재(인쇄·한글)에 싣는 회차 예: 1-5 — 나머지는 이북(e-test)")
     p.add_argument("--public", default="", help="유튜브 공개 회차 — 비우면 모두 일부공개(링크로만)")
+    p.add_argument("--split", default="subject", choices=["subject", "round"],
+                   help="영상 나누기: subject = 과목마다 한 편(컴활) · round = 회차 통째 한 편(SQLD 50문항 = 1강)")
+    p.add_argument("--subject-all", default="", help="--split round 일 때 과목 칸 이름 (기본: 전 과목)")
+    p.add_argument("--per-part", type=int, default=0, help="과목 안에서 N문항씩 한 편 (예: SQLD 10 → 회차당 5편)")
+    p.add_argument("--pan-tall", action="store_true", help="세로로 긴 문항(표·SQL)을 크게 키워 판서 따라 위아래로 이동")
+    p.add_argument("--no-dest", action="store_true", help="교재/이북 구분 없는 시리즈 — 화면·제목에 「이북」을 쓰지 않음")
     p = sub.add_parser("new")
     p.add_argument("--year", type=int, required=True)
     p.add_argument("--subject", default="컴퓨터일반")
@@ -156,15 +165,19 @@ def main(argv: Optional[List[str]] = None) -> int:
     from .job import Job, create, resolve
     try:
         if a.cmd == "new-mock":
-            from .job import create_mock, mock_parts, save_mock_series
+            from .job import create_mock, mock_series, save_mock_series, series_parts
             rounds, public = _years(a.rounds), (_years(a.public) if a.public else [])
             textbook = _years(a.textbook) if a.textbook else []
             save_mock_series({"code": a.code, "name": a.name, "exam": a.exam, "short": a.short, "year": a.year,
-                              "book": a.book, "rounds": rounds, "textbook": textbook, "public": public})
-            from pathlib import Path as _P
+                              "book": a.book, "rounds": rounds, "textbook": textbook, "public": public,
+                              **({"split": a.split, "subject_all": a.subject_all or "전 과목"} if a.split != "subject" else {}),
+                              **({"per_part": a.per_part} if a.per_part else {}),
+                              **({"pan_tall": True} if a.pan_tall else {}),
+                              **({"no_dest": True} if a.no_dest else {})})
             for n in rounds:
                 rc = f"m{n:02d}"
-                for pinfo in mock_parts(_P(a.book), rc):
+                series = next(e for e in mock_series() if e["code"] == a.code)
+                for pinfo in series_parts(series, rc):
                     j = create_mock(a.code, rc, pinfo["part"])
                     log(f"작업: {j.id}  {j.meta['title']}  ({pinfo['range'][0]}~{pinfo['range'][1]}번 · {j.meta['dest']} · {j.meta['visibility']})")
         elif a.cmd == "new":
@@ -208,6 +221,10 @@ def main(argv: Optional[List[str]] = None) -> int:
                             run_stage(j, st, a.force)
                         elif st == "post":
                             post(j, a.visibility, force=a.force, account=a.account, when=parse_when(a.at) if a.at else None)
+                        elif st == "vfix":            # 음성 체크 「한 번에 고치고 굽기」 — 확인 안 한 줄을 전부 AI 교정
+                            from . import voicecheck
+                            log(f"── {j.id} · AI 발음 교정(확인 안 한 줄 전부)")
+                            voicecheck.ai_fix_all(j, redo=True)
                         elif st == "link":
                             from . import link
                             link.run(j)

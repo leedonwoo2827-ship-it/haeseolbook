@@ -29,7 +29,7 @@ def sino(n: int) -> str:
     return "".join(out)
 
 
-_UNIT_RE = re.compile(r"(?<![A-Za-z0-9.,])(\d+)\s*(" + SINO_UNITS + r")")
+_UNIT_RE = re.compile(r"(?<![A-Za-z0-9.,])(\d+)\s*(" + SINO_UNITS + r")(?!터)")   # 1부터 ≠ 1부(部)+터
 _ZERO_KO_RE = re.compile(r"(?<![공영일이삼사오육칠팔구십백천])(?:공|영)([일이삼사오육칠팔구])\s*(" + SINO_UNITS + r")")
 _MINUS_RE = re.compile(r"(?<![\w)\]])[-−–](?=\d)")
 _BITS_RE = re.compile(r"(?<![\d.,])([01]{4,})(?![\d.,])")
@@ -73,3 +73,30 @@ def speak_numbers(text: str) -> str:
     text = _UNIT_RE.sub(lambda m: f"{sino(int(m.group(1)))} {m.group(2)}", text)
     text = _PARTICLE_RE.sub(lambda m: sino(int(m.group(1))), text)
     return _ZERO_KO_RE.sub(r"\1 \2", text)
+
+
+# ── 고유어 수(세 건 · 두 개 · 다섯 명) — SQLD 처럼 「3건」「2개 행」이 많은 과목에서 engine.spoken 이 부른다 ──
+NATIVE_UNITS = "건|개|명|가지|곳|쌍|군데|줄|칸|사람|번째"
+_NATIVE_ONES = ["", "한", "두", "세", "네", "다섯", "여섯", "일곱", "여덟", "아홉"]
+_NATIVE_TENS = ["", "열", "스물", "서른", "마흔", "쉰", "예순", "일흔", "여든", "아흔"]
+_NATIVE_RE = re.compile(r"(?<![A-Za-z0-9.,])(\d{1,2})\s*(" + NATIVE_UNITS + r")")
+
+
+SAY_UNIT = {"건": "껀"}        # 소리대로(된소리) — 「세 건」을 TTS 가 [껀]으로 읽게 (사용자 2026-11-13)
+
+
+def native(n: int) -> str:
+    if n == 20:
+        return "스무"
+    return _NATIVE_TENS[n // 10] + _NATIVE_ONES[n % 10]
+
+
+def speak_native(text: str) -> str:
+    """3건 → 세 건 · 2개 → 두 개 · 1번째 → 첫 번째 · 0건 → 영 건 (0~99)"""
+    def rep(m: "re.Match[str]") -> str:
+        n, unit = int(m.group(1)), m.group(2)
+        unit = SAY_UNIT.get(unit, unit)
+        if n == 0:
+            return "영 " + unit
+        return ("첫" if n == 1 and unit == "번째" else native(n)) + " " + unit
+    return _NATIVE_RE.sub(rep, text or "")
