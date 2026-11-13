@@ -3,8 +3,8 @@
 왜 따로 두는가: 사전은 낱말 치환이라 `=$A2*B$1`, `[B2:D4]`, `2027-03-30`, `#,##0,,` 같은 기호열을 읽지 못한다.
 여기서 기호열을 소리로 풀고, 함수명(SUM·VLOOKUP…)은 그대로 남겨 과목 사전(studio/dict/spreadsheet.yaml)이 읽게 한다.
 
-  =$A2*B$1        → 달러 에이 이 곱하기 비 달러 일
-  [B2:D4] 영역    → 비이부터 디사까지 영역
+  =$A2*B$1        → 달러 에이 투 곱하기 비 달러 원
+  [B2:D4] 영역    → 비투부터 디포까지 영역 (행 번호 1~12는 영어, 13부터 한자어)
   2027-03-30      → 이천이십칠년 삼월 삼십일
   #N/A · #DIV/0!  → 샵 엔에이 · 샵 디브 제로
   F4 를 누르면    → 에프포 를 누르면 (기능키는 영어 숫자로 읽는다)
@@ -55,19 +55,21 @@ def number(tok: str) -> str:
     tok = tok.lstrip("-").replace(",", "")
     if "." in tok:
         a, b = tok.split(".", 1)
-        s = sino(int(a or 0)) + " 점 " + "".join(_D[int(c)] for c in b)
+        s = sino(int(a or 0)) + "쩜" + "".join(_D[int(c)] for c in b)      # 7.5 → 칠쩜오
     else:
         s = sino(int(tok))
     return ("마이너스 " if neg else "") + s
 
 
 def cell(ref: str) -> str:
-    """$A$1 → 달러 에이 달러 일, AB12 → 에이비십이"""
+    """$A$1 → 달러 에이 달러 원, E1 → 이원, AB12 → 에이비트웰브, B25 → 비이십오
+    행 번호는 강의 말투대로 영어(1~12: 원·투…트웰브), 그보다 크면 한자어."""
     m = re.fullmatch(r"(\$?)([A-Z]{1,3})(\$?)(\d+)", ref)
     if not m:
         return ref
     col = "".join(LETTER[c] for c in m.group(2))
-    row = sino(int(m.group(4)))
+    n = int(m.group(4))
+    row = _EN[n] if 1 <= n < len(_EN) else sino(n)
     if m.group(1) or m.group(3):
         return " ".join(x for x in ("달러" if m.group(1) else "", col, "달러" if m.group(3) else "", row) if x)
     return col + row
@@ -77,6 +79,8 @@ _REF = r"\$?[A-Z]{1,3}\$?[1-9]\d{0,6}"
 _RANGE = re.compile(rf"(?<![A-Za-z0-9$])({_REF})\s*:\s*({_REF})(?![A-Za-z0-9])")
 _COLS = re.compile(r"(?<![A-Za-z0-9$])\$?([A-Z]{1,3}):\$?([A-Z]{1,3})(?![A-Za-z0-9])")
 _BRACKET = re.compile(rf"\[\s*((?:{_REF})(?:\s*:\s*{_REF})?)\s*\]")
+_PCT = re.compile(r"(?<=[\d영일이삼사오육칠팔구십백천만억])\s*[%％]")
+_LABEL = re.compile(r"\[([^\[\]\n]{1,30})\]")
 _CELL = re.compile(rf"(?<![A-Za-z0-9$#])({_REF})(?![A-Za-z0-9(])")
 _FKEY = re.compile(r"(?<![A-Za-z0-9])F(1[0-2]|[1-9])(?=\s*(?:키|를|을|와|과|는|은|만|로|,|\)|$|\s*\+)|(?![0-9A-Za-z]))")
 _DATE = re.compile(r"(?<!\d)(\d{4})-(\d{1,2})-(\d{1,2})(?!\d)")
@@ -84,7 +88,7 @@ _ERR = re.compile("|".join(re.escape(k) for k in sorted(ERRORS, key=len, reverse
 # 수식의 시작: '=' 앞이 문장 시작·공백·여는 괄호·따옴표이고 뒤가 수식 글자. 끝은 _formula_end 가 찾는다.
 _FORMULA_START = re.compile(r"(?:^|(?<=[\s(\[“\"'‘]))=(?=[A-Za-z$(\d\-\"])")
 _FMT = re.compile(r"(?<![\w#])((?:[#0?]+[,.]?)+[#0?,.%]*|[#0?,.]*#[#0?,.]*)(?![#0?A-Za-z0-9])")
-_NUM = re.compile(r"(?<![A-Za-z0-9.\-])-?\d{1,3}(?:,\d{3})+(?:\.\d+)?(?![\d])|(?<![A-Za-z0-9.,\-])-?\d+(?:\.\d+)?(?![\d,]|\s*(?:개|명|시간|살|마리|가지|군데|곳|줄|칸|번째))")
+_NUM = re.compile(r"(?<![A-Za-z0-9.\-])-?\d{1,3}(?:,\d{3})+(?:\.\d+)?(?![\d])|(?<![A-Za-z0-9.,\-])-?\d+(?:\.\d+)?(?!\d|[,.]\d|\s*(?:개|명|시간|살|마리|가지|군데|곳|줄|칸|번째))")
 _TOKEN = re.compile(rf"\"[^\"]*\"|{_REF}\s*:\s*{_REF}|\$?[A-Z]{{1,3}}:\$?[A-Z]{{1,3}}(?![0-9])|{_REF}|[A-Z][A-Z0-9.]*(?=\()|TRUE|FALSE|\d+(?:\.\d+)?|<>|>=|<=|[-+*/^&=<>:,;()%]|\S")
 
 
@@ -147,6 +151,7 @@ def speak(text: str, sheet: bool = False) -> str:
     text = _formulas(text)
     text = _spans(text)
     text = _BRACKET.sub(lambda m: _ref_words(m.group(1)), text)
+    text = _LABEL.sub(r"\1", text)                          # [확인] → 확인 (버튼·메뉴 표시 대괄호는 읽지 않는다)
     text = _DATE.sub(_date, text)
     text = _FKEY.sub(lambda m: "에프" + _EN[int(m.group(1))], text)
     if sheet:
@@ -155,6 +160,7 @@ def speak(text: str, sheet: bool = False) -> str:
         text = _CELL.sub(lambda m: cell(m.group(1)), text)
         text = _FMT.sub(_fmt, text)
         text = _NUM.sub(lambda m: number(m.group(0)), text)
+    text = _PCT.sub("퍼센트", text)                           # 10% → 십퍼센트
     text = re.sub(r"[ \t]{2,}", " ", text)
     return re.sub(r" +([,.?!)])", r"\1", text).strip()
 

@@ -310,6 +310,16 @@ final class Catalog
                 'endSec' => (float) $q['end_sec'], 'cues' => $q['cues'] ? json_decode($q['cues'], true) : [],
             ], array_filter($quizzes, fn ($q) => $q['youtube_id'] !== null && $q['start_sec'] !== null && $q['end_sec'] !== null))),
             'imageUrls' => (object) $urls,
+            // 첨부(실습 파일·해설 PDF) — 쪽 그림과 같은 서명 주소
+            'attachments' => array_map(fn ($a) => [
+                'label' => $a['label'], 'name' => $a['name'],
+                'url' => Storage::sign("books/{$bookId}/{$a['file']}", $userId) . '&dl=' . rawurlencode($a['name']),
+            ], json_decode((string) @file_get_contents(Storage::root() . "/books/{$bookId}/attachments.json"), true) ?: []),
+            // 해설 그림 — 이름(files/ 뒤) → 서명 주소. 해설 Markdown 의 ![설명](img:이름) 이 이것을 쓴다
+            'images' => (object) array_combine(
+                array_map(fn ($f) => basename($f), $imgs = json_decode((string) @file_get_contents(Storage::root() . "/books/{$bookId}/images.json"), true) ?: []),
+                array_map(fn ($f) => Storage::sign("books/{$bookId}/{$f}", $userId), $imgs)
+            ),
             'urlExpiresAt' => gmdate('Y-m-d\TH:i:s\Z', time() + ASSET_TTL),
         ];
     }

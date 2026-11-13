@@ -102,6 +102,31 @@ function seed(string $dir): array
         }
     }
 
+    // 첨부(실습 파일·해설 PDF) — attachments.json [{file:"files/x.xlsx", label, name}] · 저장소 books/<id>/files/ (2026-11-11)
+    $att = read_json($dir, 'attachments.json', true);
+    $fdir = "{$root}/books/{$id}/files";
+    if (is_dir($fdir)) foreach (glob("{$fdir}/*") ?: [] as $old) @unlink($old);
+    $keep = [];
+    foreach ($att as $i => $a) {
+        $f = (string) ($a['file'] ?? '');
+        if (!preg_match('#^files/[a-z0-9][a-z0-9_-]{0,60}\.(xlsx|pdf)$#', $f) || !is_file("{$dir}/{$f}")) fail("attachments[{$i}]: 파일이 없거나 이름이 올바르지 않습니다");
+        @mkdir($fdir, 0775, true);
+        copy("{$dir}/{$f}", "{$root}/books/{$id}/{$f}") || fail("{$f} 복사 실패");
+        $keep[] = ['file' => $f, 'label' => (string) ($a['label'] ?? basename($f)), 'name' => (string) ($a['name'] ?? basename($f))];
+    }
+    @mkdir("{$root}/books/{$id}", 0775, true);
+    file_put_contents("{$root}/books/{$id}/attachments.json", json_encode($keep, JSON_UNESCAPED_UNICODE));
+    // 해설 그림 — images.json ["files/x.png", …] · 해설 Markdown 의 ![설명](img:x.png) 가 이 그림을 가리킨다(2026-11-11)
+    $imgs = [];
+    foreach (read_json($dir, 'images.json', true) as $i => $f) {
+        $f = (string) $f;
+        if (!preg_match('#^files/[a-z0-9][a-z0-9_-]{0,60}\.(png|jpg|webp|svg)$#', $f) || !is_file("{$dir}/{$f}")) fail("images[{$i}]: 파일이 없거나 이름이 올바르지 않습니다");
+        @mkdir($fdir, 0775, true);
+        copy("{$dir}/{$f}", "{$root}/books/{$id}/{$f}") || fail("{$f} 복사 실패");
+        $imgs[] = $f;
+    }
+    file_put_contents("{$root}/books/{$id}/images.json", json_encode($imgs));
+
     Db::tx(function () use ($id, $book, $pages, $regions, $quizzes, $solutions, $videos) {
         $now = \Hsb\now();
         $row = [

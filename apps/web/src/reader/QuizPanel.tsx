@@ -8,6 +8,8 @@ const CIRCLED = '①②③④⑤';
 export type PanelTab = 'quiz' | 'notes' | 'wrong';
 
 interface Props {
+  /** all = 예전(탭·번호·해설 한 칸) · nav = 탭·번호만(실기 왼쪽) · solution = 고른 문항의 해설만(실기 오른쪽) */
+  part?: 'all' | 'nav' | 'solution';
   tab: PanelTab;
   onTab: (t: PanelTab) => void;
   quizzes: Quiz[];
@@ -29,12 +31,33 @@ export function QuizPanel(p: Props) {
   const attempt = quiz ? p.attempts.get(quiz.id) : undefined;
   const result = quiz && p.lastResult?.quizId === quiz.id ? p.lastResult : null;
   const answered = !!result || !!attempt;
+  // 보기가 없는 문항(실기 작업형 등)은 채점 없이 해설을 바로 연다
+  const task = !!quiz && quiz.choiceCount === 0;
   const solutionHtml = useMemo(() => {
     const s = quiz && p.solutions.get(quiz.id);
     return s ? renderMarkdown(s.markdown) : '';
   }, [quiz, p.solutions]);
   const wrong = p.quizzes.filter((q) => p.attempts.get(q.id)?.everWrong);
   const seg = quiz ? p.segments.get(quiz.id) : undefined;
+  const part = p.part ?? 'all';
+
+  if (part === 'solution') {
+    // 실기 오른쪽 칸 — 고른 문항의 해설(그림 포함)만
+    return (
+      <div className="panel sol-panel">
+        {!quiz && <p className="muted">왼쪽에서 문항 번호를 누르거나 원문의 문항을 누르면 여기에 해설이 나옵니다.</p>}
+        {quiz && (
+          <div className="quiz-card">
+            <div className="quiz-head">
+              <b>{quiz.no}번</b>
+              {seg && <button className="link" onClick={() => p.onSelect(quiz.id, true)}>▶ 해설 영상 {fmt(seg.startSec)}–{fmt(seg.endSec)}</button>}
+            </div>
+            {solutionHtml ? <div className="solution" dangerouslySetInnerHTML={{ __html: solutionHtml }} /> : <p className="muted">해설 준비 중입니다.</p>}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="panel">
@@ -57,8 +80,8 @@ export function QuizPanel(p: Props) {
               );
             })}
           </div>
-          {!quiz && <p className="muted">문항 번호를 누르거나 원문의 문항을 탭하면 해설 영상이 그 구간부터 재생됩니다.</p>}
-          {quiz && (
+          {!quiz && part === 'all' && <p className="muted">문항 번호를 누르거나 원문의 문항을 탭하면 해설 영상이 그 구간부터 재생됩니다.</p>}
+          {quiz && part === 'all' && (
             <div className="quiz-card">
               <div className="quiz-head">
                 <b>{quiz.no}번</b>
@@ -80,9 +103,9 @@ export function QuizPanel(p: Props) {
                   {(result ?? attempt)!.correct ? '정답입니다' : `오답 — 정답은 ${CIRCLED[quiz.answer - 1]}`}
                 </p>
               )}
-              {answered && solutionHtml && <div className="solution" dangerouslySetInnerHTML={{ __html: solutionHtml }} />}
-              {answered && !solutionHtml && <p className="muted">해설 준비 중입니다.</p>}
-              {!answered && <p className="muted">보기를 고르면 채점과 해설이 열립니다. 원문 위에 풀이를 먼저 써 보세요.</p>}
+              {(answered || task) && solutionHtml && <div className="solution" dangerouslySetInnerHTML={{ __html: solutionHtml }} />}
+              {(answered || task) && !solutionHtml && <p className="muted">해설 준비 중입니다.</p>}
+              {!answered && !task && <p className="muted">보기를 고르면 채점과 해설이 열립니다. 원문 위에 풀이를 먼저 써 보세요.</p>}
             </div>
           )}
         </div>

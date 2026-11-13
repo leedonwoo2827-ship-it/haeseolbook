@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { cueAt, segmentAt, type BookManifest, type Stroke } from '@hsb/shared';
 import { ApiError, getManifest, getMe, hasSession, listAttempts, submitAttempt, type Attempt } from '../lib/api';
 import { loadManifest, saveManifest } from '../lib/db';
+import { setImageMap } from '../lib/markdown';
 import { InkSync } from '../lib/sync';
 import { useYouTube } from '../lib/youtube';
 import { HIGHLIGHT_COLORS, HIGHLIGHT_SIZE, PEN_COLORS, PEN_SIZES, type Tool } from '../reader/ink';
@@ -16,12 +17,13 @@ const SIDE_KEY = 'hsb.sideWidth';
 const SIDE_MIN = 320;
 
 /** 영상·문항 패널 폭 조절: 경계를 끌어서 넓히고, 두 번 누르면 기본 폭으로 */
-function Splitter({ onWidth }: { onWidth: (w: number | null) => void }) {
+function Splitter({ onWidth, right = false }: { onWidth: (w: number | null) => void; right?: boolean }) {
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
     const el = e.currentTarget;
     el.setPointerCapture(e.pointerId);
-    const move = (ev: PointerEvent) => onWidth(Math.round(Math.min(Math.max(ev.clientX, SIDE_MIN), window.innerWidth - 420)));
+    // right: 영상·해설 패널이 오른쪽(실기) — 폭은 화면 오른쪽 끝에서 잰다
+    const move = (ev: PointerEvent) => onWidth(Math.round(Math.min(Math.max(right ? window.innerWidth - ev.clientX : ev.clientX, SIDE_MIN), window.innerWidth - 420)));
     const up = () => { el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); };
     el.addEventListener('pointermove', move);
     el.addEventListener('pointerup', up);
@@ -62,6 +64,12 @@ export function Reader() {
   const redo = useRef<HistoryOp[]>([]);
 
   const scroller = useRef<HTMLDivElement>(null);
+  // 실기(보기 없는 교재) — 해설 칸 접기 · 왼쪽 폭은 필기와 따로 기억
+  const [solFold, setSolFold] = useState<boolean>(() => { try { return localStorage.getItem('hsb.solFold') === '1'; } catch { return false; } });
+  useEffect(() => { try { localStorage.setItem('hsb.solFold', solFold ? '1' : ''); } catch { /* 저장 불가 */ } }, [solFold]);
+  const [taskW, setTaskW] = useState<number | null>(() => {
+    try { const v = Number(localStorage.getItem(SIDE_KEY + '.task')); return v >= SIDE_MIN ? v : null; } catch { return null; }
+  });
   const [sideW, setSideW] = useState<number | null>(() => {
     try { const v = Number(localStorage.getItem(SIDE_KEY)); return v >= SIDE_MIN ? v : null; } catch { return null; }
   });
@@ -86,6 +94,7 @@ export function Reader() {
         if (!manifest) { setErr('오프라인입니다. 한 번 이상 온라인에서 연 교재만 볼 수 있습니다.'); return; }
         setOffline(true);
       }
+      setImageMap(manifest.images);      // 해설 그림 ![설명](img:이름) 주소표 — 해설을 그리기 전에
       setM(manifest);
       setVideoId(manifest.videoSegments[0]?.youtubeId ?? null);
       s = new InkSync(bookId);
@@ -221,36 +230,17 @@ export function Reader() {
   if (err) return <div className="center-msg"><p>{err}</p><Link to="/">서재로</Link></div>;
   if (!m || !sync) return <div className="center-msg"><p>교재를 여는 중…</p></div>;
 
+  const taskBook = quizzes.length > 0 && !quizzes.some((q) => q.choiceCount > 0);
   const color = tool === 'highlighter' ? hlColor : penColor;
   const size = tool === 'highlighter' ? HIGHLIGHT_SIZE : penSize;
 
-  return (
-    <div className="reader">
-      <header className="reader-top">
-        <Link to="/" className="back" aria-label="서재로">←</Link>
-        <div className="title"><b>{m.book.title}</b><small>{m.book.exam} · {m.book.subject}</small></div>
-        <span className={`sync ${sync.state}`}>{offline ? '오프라인 모드' : SYNC_LABEL[sync.state]}</span>
-      </header>
-
-      <div className="reader-body" style={sideW ? ({ '--side-w': `${sideW}px` } as React.CSSProperties) : undefined}>
-        <aside className="side">
-          <div className="video">
-            <div ref={playerBox} className="video-box" />
-            {!videoId && <div className="video-empty">이 교재에는 아직 해설 영상이 없습니다</div>}
-            {player.error && <div className="video-empty">{player.error}</div>}
-          </div>
-          <label className="follow"><input type="checkbox" checked={follow} onChange={(e) => setFollow(e.target.checked)} /> 영상 따라 원문 자동 이동</label>
-          <QuizPanel
-            tab={tab} onTab={setTab} quizzes={quizzes} solutions={solutions} segments={segments} attempts={attempts}
-            activeQuizId={activeQuizId} lastResult={lastResult} notes={notes}
-            onSelect={selectQuiz} onAnswer={onAnswer} onNote={onNote}
-          />
-        </aside>
-        <Splitter onWidth={(w) => { setSideW(w); try { if (w) localStorage.setItem(SIDE_KEY, String(w)); else localStorage.removeItem(SIDE_KEY); } catch { /* 저장 불가 */ } }} />
-
+  // 문제 원문(쪽 그림 · 펜·형광펜) — 필기는 오른쪽 넓은 칸, 실기(task)는 왼쪽 영상·문항 번호 밑
+  const pagesCol = (
         <main className="pages-col">
           <div className="toolbar" role="toolbar" aria-label="필기 도구">
-            {([['view', '답 고르기', '번호를 누르면 채점 · 문항/필기를 누르면 그 영상 구간'], ['pen', '펜', ''], ['highlighter', '형광펜', ''], ['eraser', '지우개', '획 단위']] as const).map(([t, label, tip]) => (
+            {([['view', quizzes.some((q) => q.choiceCount > 0) ? '답 고르기' : '문항 보기',
+                quizzes.some((q) => q.choiceCount > 0) ? '번호를 누르면 채점 · 문항/필기를 누르면 그 영상 구간' : '문항을 누르면 그 해설·영상 구간(실기처럼 보기가 없는 교재)'],
+              ['pen', '펜', ''], ['highlighter', '형광펜', ''], ['eraser', '지우개', '획 단위']] as const).map(([t, label, tip]) => (
               <button key={t} className={tool === t ? 'on' : ''} onClick={() => setTool(t)} title={tip}>{label}</button>
             ))}
             <span className="sep" />
@@ -298,6 +288,52 @@ export function Reader() {
             <p className="watermark-note">본 교재 이미지는 로그인한 사용자 전용으로 제공됩니다.</p>
           </div>
         </main>
+  );
+
+  return (
+    <div className="reader">
+      <header className="reader-top">
+        <Link to="/" className="back" aria-label="서재로">←</Link>
+        <div className="title"><b>{m.book.title}</b><small>{m.book.exam} · {m.book.subject}</small></div>
+        {(m.attachments ?? []).length > 0 && (
+          <nav className="attach" aria-label="첨부 파일">
+            {(m.attachments ?? []).map((a) => (
+              <a key={a.url} href={a.url} download={a.name} title={a.name}>📎 {a.label}</a>
+            ))}
+          </nav>
+        )}
+        <span className={`sync ${sync.state}`}>{offline ? '오프라인 모드' : SYNC_LABEL[sync.state]}</span>
+      </header>
+
+      {/* ★ 보기가 없는 교재(실기 작업형) — 사용자 2026-11-11: 왼쪽은 영상 → 문항 번호 → 문제 원문, 오른쪽은 해설만(그림 해설이 길다).
+            「해설 접기」로 오른쪽을 접고 원문만 넓게 볼 수 있다. 필기(보기 있는 교재)는 예전 배치 그대로. */}
+      <div className={`reader-body${taskBook ? ' task' : ''}${taskBook && solFold ? ' fold' : ''}`}
+        style={(taskBook ? taskW : sideW) ? ({ '--side-w': `${taskBook ? taskW : sideW}px` } as React.CSSProperties) : undefined}>
+        <aside className="side">
+          <div className="video">
+            <div ref={playerBox} className="video-box" />
+            {!videoId && <div className="video-empty">이 교재에는 아직 해설 영상이 없습니다</div>}
+            {player.error && <div className="video-empty">{player.error}</div>}
+          </div>
+          <label className="follow"><input type="checkbox" checked={follow} onChange={(e) => setFollow(e.target.checked)} /> 영상 따라 원문 자동 이동
+            {taskBook && <button className="fold-btn" onClick={() => setSolFold((v) => !v)}>{solFold ? '해설 펴기 ▶' : '◀ 해설 접기'}</button>}</label>
+          <QuizPanel part={taskBook ? 'nav' : 'all'}
+            tab={tab} onTab={setTab} quizzes={quizzes} solutions={solutions} segments={segments} attempts={attempts}
+            activeQuizId={activeQuizId} lastResult={lastResult} notes={notes}
+            onSelect={selectQuiz} onAnswer={onAnswer} onNote={onNote}
+          />
+          {taskBook && pagesCol}
+        </aside>
+        <Splitter onWidth={(w) => { (taskBook ? setTaskW : setSideW)(w); try { if (w) localStorage.setItem(taskBook ? SIDE_KEY + '.task' : SIDE_KEY, String(w)); else localStorage.removeItem(taskBook ? SIDE_KEY + '.task' : SIDE_KEY); } catch { /* 저장 불가 */ } }} />
+        {taskBook ? (
+          <section className="sol-col" aria-label="해설">
+            <QuizPanel part="solution"
+              tab={tab} onTab={setTab} quizzes={quizzes} solutions={solutions} segments={segments} attempts={attempts}
+              activeQuizId={activeQuizId} lastResult={lastResult} notes={notes}
+              onSelect={selectQuiz} onAnswer={onAnswer} onNote={onNote}
+            />
+          </section>
+        ) : pagesCol}
       </div>
     </div>
   );

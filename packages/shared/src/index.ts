@@ -96,6 +96,10 @@ export const BookManifest = z.object({
   solutions: z.array(Solution),
   videoSegments: z.array(VideoSegment),
   imageUrls: z.record(z.string(), z.object({ xs: z.string(), sm: z.string(), hi: z.string() })),
+  /** 첨부(실기 실습 파일·해설 PDF) — 서명된 내려받기 주소. 예전 서버·패키지는 없음 */
+  attachments: z.array(z.object({ label: z.string(), name: z.string(), url: z.string() })).optional().default([]),
+  /** 해설 그림 — 이름 → 서명 주소. 해설 Markdown 의 ![설명](img:이름) */
+  images: z.record(z.string(), z.string()).optional().default({}),
   urlExpiresAt: z.string(),
 });
 export type BookManifest = z.infer<typeof BookManifest>;

@@ -19,7 +19,8 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-INCLUDE_JSON = ["book.json", "pages.json", "regions.json", "quizzes.json", "solutions.json", "video_map.json"]
+INCLUDE_JSON = ["book.json", "pages.json", "regions.json", "quizzes.json", "solutions.json", "video_map.json",
+                "attachments.json", "images.json"]   # 첨부·해설 그림(files/) — 2026-11-11
 REQUIRED = {"book.json", "pages.json", "quizzes.json"}
 
 
@@ -49,6 +50,7 @@ def main() -> None:
     files: list[Path] = [a.build / f for f in INCLUDE_JSON if (a.build / f).exists()]
     for p in pages:
         files += [a.build / p["files"][s] for s in ("xs", "sm", "hi")]
+    files += sorted((a.build / "files").glob("*")) if (a.build / "files").is_dir() else []
 
     item = {
         "schema": "ipitem/1",

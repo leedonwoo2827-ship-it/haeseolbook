@@ -164,11 +164,19 @@ function build_router(): Router
         $exp = (int) $req->q('exp');
         $file = Storage::resolve($p['key'], (string) $req->q('u'), $exp, (string) $req->q('sig'))
             ?? throw new HttpError(403, '만료되었거나 잘못된 링크입니다');
-        return new Response(200, [
-            'Content-Type' => 'image/webp',
+        $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+        $types = ['webp' => 'image/webp', 'png' => 'image/png', 'jpg' => 'image/jpeg', 'svg' => 'image/svg+xml', 'pdf' => 'application/pdf',
+                  'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
+        $head = [
+            'Content-Type' => $types[$ext] ?? 'application/octet-stream',
             'Cache-Control' => 'private, max-age=' . max(0, $exp - time()),
             'Cross-Origin-Resource-Policy' => 'cross-origin',
-        ], '', $file);
+        ];
+        if (!in_array($ext, ['webp', 'png', 'jpg', 'svg'], true)) {          // 첨부는 내려받기 — 표시 이름(dl)은 한글 파일명 그대로
+            $dl = (string) ($req->q('dl') ?: basename($file));
+            $head['Content-Disposition'] = "attachment; filename=\"" . preg_replace('/[^A-Za-z0-9_.-]/', '_', $dl) . "\"; filename*=UTF-8''" . rawurlencode($dl);
+        }
+        return new Response(200, $head, '', $file);
     });
 
     return $r;

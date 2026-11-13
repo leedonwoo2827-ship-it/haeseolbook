@@ -51,8 +51,8 @@ function import_package(string $zipPath): array
         if ($expected !== $actual) throw new HttpError(400, 'zip 구성이 item.json 의 파일 목록과 다릅니다');
 
         foreach ($files as $name => $hash) {
-            // 허용 경로: 루트 JSON 또는 pages/{xs,sm,hi}/<n>.webp
-            if (!preg_match('#^([a-z_]+\.json|pages/(xs|sm|hi)/\d{1,4}\.webp)$#', $name)) throw new HttpError(400, "허용되지 않은 파일 경로: {$name}");
+            // 허용 경로: 루트 JSON · pages/{xs,sm,hi}/<n>.webp · files/<영숫자>.(xlsx|pdf) — 실기 실습 파일·해설 PDF 첨부(2026-11-11)
+            if (!preg_match('#^([a-z_]+\.json|pages/(xs|sm|hi)/\d{1,4}\.webp|files/[a-z0-9][a-z0-9_-]{0,60}\.(xlsx|pdf|png|jpg|webp|svg))$#', $name)) throw new HttpError(400, "허용되지 않은 파일 경로: {$name}");
             $data = $zip->getFromIndex($entries[$name]);
             if ($data === false || !hash_equals((string) $hash, hash('sha256', $data))) throw new HttpError(400, "파일 해시 불일치: {$name}");
             $dest = "{$tmp}/{$name}";

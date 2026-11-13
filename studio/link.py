@@ -38,7 +38,45 @@ def video_map(job: Job, youtube_id: str) -> List[Dict[str, Any]]:
     return out
 
 
+def attach_figures(job: Job) -> int:
+    """모의고사: 원천 문항(<교재>/02/<mNN>-<번호>.md)의 「## 해설」 그림을 이북 해설 끝에 붙인다(2026-11-11 — 해설 칸에 그림이 안 나옴).
+    그림은 book/files/<이름>.svg 로 싣고 images.json 에 목록 — 해설 Markdown 의 ![설명](img:이름) 를 이북이 서명 주소로 보여 준다.
+    여러 번 돌려도 같은 결과(예전에 붙인 그림 줄은 지우고 다시)."""
+    import re
+    if job.setting("kind") != "mock":
+        return 0
+    full = Path(job.meta.get("paperFull") or job.meta["paper"])        # <교재>/07/<mNN>/exam.pdf
+    src02, rc = full.parent.parent.parent / "02", job.meta["round"]
+    sols = read_json(job.book / "solutions.json", []) or []
+    fdir = job.book / "files"
+    names: List[str] = []
+    for s in sols:
+        md = re.sub(r"\n*!\[[^\]]*\]\(img:[^)]+\)\n*", "\n", s.get("markdown", "")).rstrip()
+        f = src02 / f"{rc}-{int(s['no']):02d}.md"
+        if f.exists():
+            parts = re.split(r"^##\s*해설\s*$", f.read_text(encoding="utf-8"), flags=re.M)
+            sec = re.split(r"^##\s", parts[1], flags=re.M)[0] if len(parts) > 1 else ""
+            for k, (alt, rel) in enumerate(re.findall(r"!\[([^\]]*)\]\(([^)]+)\)", sec), 1):
+                pic = (f.parent / rel)
+                # 원본 이름에 한글이 있어(m01-01-fetch-답.svg) 서버 규칙(영숫자)에 맞게 <회차>-<번호>-<k> 로
+                name = f"{rc}-{int(s['no']):02d}-{k}{pic.suffix.lower()}"
+                if not pic.exists() or pic.suffix.lower() not in (".svg", ".png", ".jpg", ".webp"):
+                    continue
+                fdir.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(pic, fdir / name)
+                md += f"\n\n![{alt}](img:{name})"
+                if f"files/{name}" not in names:
+                    names.append(f"files/{name}")
+        s["markdown"] = md
+    write_json(job.book / "solutions.json", sols)
+    write_json(job.book / "images.json", names)
+    if names:
+        log(f"  해설 그림 {len(names)}장 — 이북 해설 칸에 함께")
+    return len(names)
+
+
 def run(job: Job, youtube_id: Optional[str] = None, version: Optional[str] = None, do_import: bool = True) -> Path:
+    attach_figures(job)
     st = job.state()
     youtube_id = youtube_id or (st.get("posted") or {}).get("videoId")
     if not youtube_id:                       # 롱폼 공방에서 올렸으면 그 주소를 가져온다

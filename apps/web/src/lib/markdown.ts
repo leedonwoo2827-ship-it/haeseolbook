@@ -23,6 +23,10 @@ function inline(text: string): string {
   return s.replace(/\u0000(\d+)\u0000/g, (_, i) => slots[Number(i)]);
 }
 
+/** 해설 그림 주소표(교재를 열 때 Reader 가 채운다) — ![설명](img:이름) 를 이 주소의 그림으로 */
+let IMAGES: Record<string, string> = {};
+export function setImageMap(map: Record<string, string> | undefined): void { IMAGES = map ?? {}; }
+
 export function renderMarkdown(md: string): string {
   const out: string[] = [];
   let list: string[] = [];
@@ -50,6 +54,16 @@ export function renderMarkdown(md: string): string {
       continue;
     }
     if (table.length) flush();
+    // ![설명](img:이름) 또는 ![설명](img:이름|보일 폭px) — 2배로 그린 그림은 폭을 절반으로 적어 둔다(글씨가 본문과 같은 크기)
+    const img = /^!\[([^\]]*)\]\(img:([A-Za-z0-9_.-]+)(?:\|(\d{2,4}))?\)$/.exec(line);
+    if (img) {
+      flush();
+      const src = IMAGES[img[2]];
+      const w = img[3] ? ` style="width:${Number(img[3])}px"` : '';
+      out.push(src ? `<figure class="sol-fig"><img src="${esc(src)}" alt="${esc(img[1])}" loading="lazy"${w}><figcaption>${esc(img[1])}</figcaption></figure>`
+                   : `<p class="muted">(그림: ${esc(img[1])})</p>`);
+      continue;
+    }
     if (!line) flush();
     else if (h) { flush(); out.push(`<h4>${inline(h[2])}</h4>`); }
     else if (/^[-*]\s+/.test(line)) { if (para.length) flush(); list.push(line.replace(/^[-*]\s+/, '')); }

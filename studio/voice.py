@@ -66,7 +66,8 @@ def run(job: Job, force: bool = False) -> Dict[str, Any]:
     # 캐시 기준 = 실제로 읽는 발음(손으로 고친 발음 또는 사전 적용 후) — 사전을 고치면 그 문장만 다시 합성된다
     for it in items:
         it["spoken"] = fixed_tts(fx, it) or engine.spoken(it["say"], subject)
-    key = hashlib.sha1(repr([(i["spoken"], i["scene"]) for i in items] + [voice, speed, LEAD, GAP, SCENE_GAP, TAIL]).encode()).hexdigest()[:16]
+    # 자막(cap)도 넣는다 — 자막만 고쳐도 timing 의 자막이 새로 써지고 s5 가 다시 굽는다(목소리 wav 는 캐시 그대로)
+    key = hashlib.sha1(repr([(i["spoken"], i["scene"], i["cap"]) for i in items] + [voice, speed, LEAD, GAP, SCENE_GAP, TAIL]).encode()).hexdigest()[:16]
     tpath, npath = job.audio / "timing.json", job.audio / "narration.wav"
     old = read_json(tpath)
     if old and old.get("hash") == key and npath.exists() and not force:
