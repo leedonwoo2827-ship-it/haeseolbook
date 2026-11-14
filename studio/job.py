@@ -246,7 +246,7 @@ def create_mock(code: str, rc: str, part: int, voice: str = "F1", model: str = "
 
 
 def lecture_title(series: Dict[str, Any], L: Dict[str, Any]) -> str:
-    return f"{series.get('short') or series['exam']} 필기 출제예상문제 {L['id']} {L['title']} 해설"
+    return f"{series.get('short') or series['exam']} 필기 출제예상문제 {int(L['no'])}강 해설"   # 강 제목은 안 보이게(profile._lecture)
 
 
 def create_lecture(code: str, lid: str, voice: str = "F1", model: str = "opus") -> Job:

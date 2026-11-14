@@ -50,31 +50,31 @@ def count_ko(n: int) -> str:
 
 
 def _lecture(m: Dict[str, Any]) -> Dict[str, Any]:
-    """3부 강 행 — 11~20회 문항을 1부 강의(종합반) 강마다 모은 한 편. 사이트의 「강별 출제예상문제반」"""
+    """3부 강 행 — 11~15회 문항을 1부 강의(종합반) 강마다 모은 한 편. 사이트의 「강별 출제예상문제반」
+    보이는 곳(화면·자막·낭독·썸네일·유튜브 제목/설명)에는 「N강」만 — 강 제목·원래 회차·번호는 쓰지 않는다
+    (게시판이 강별로 나뉜다. 사용자 2026-11-15). 강 제목은 보이지 않는 태그에만."""
     subj, exam = m["subject"], m["exam"]
     short = m.get("short") or exam
     lid, lt, n = m["lecture"], m["lecture_title"], len(m.get("questions") or [])
     ln = int(m.get("lecture_no") or lid[1:])
-    rounds = sorted({q["round"] for q in m.get("questions") or []})
-    rr = f"{rounds[0]}~{rounds[-1]}회" if len(rounds) > 1 else (f"{rounds[0]}회" if rounds else "")
     return {
-        "intro_say": f"{short} 출제 예상 문제, {ln}강 {lt}. 이 강에 해당하는 {count_ko(n)} 문항을 풀어 보겠습니다.",
-        "intro_cap": f"{short} 출제예상문제 {ln}강 · {lt} {n}문항",
-        "outro_say": f"이것으로 {ln}강 {lt} {count_ko(n)} 문항 풀이를 마칩니다.",
+        "intro_say": f"{short} 출제 예상 문제 {ln}강, {count_ko(n)} 문항을 풀어 보겠습니다.",
+        "intro_cap": f"{short} 출제예상문제 {ln}강 · {n}문항",
+        "outro_say": f"이것으로 {ln}강 {count_ko(n)} 문항 풀이를 마칩니다.",
         "outro_cap": f"{ln}강 {n}문항 풀이 끝",
-        "title_big": f"{ln}강 {lt}", "title_second": f"{short} 출제예상문제 · {subj}",
-        "title_small": f"{n}문항 풀이 · 모의고사 {rr}에서 · 문항별 챕터",
+        "title_big": f"{ln}강", "title_second": f"{short} 출제예상문제 · {subj}",
+        "title_small": f"1~{n}번 · {n}문항 풀이 · 문항별 챕터",
         "title_num": f"{ln:02d}",
-        "yt_title": f"{short} 필기 출제예상문제 {ln}강 {lt} | {n}문항 풀이 (문항별 챕터)",
-        "yt_hook": f"{short} 종합반 {ln}강 「{lt}」에 해당하는 출제 예상 문제 {n}문항을 한 문항씩 풀이합니다.",
-        "yt_basis": f"자체 집필 모의고사 {rr} 문항을 강별로 모았습니다.",
+        "yt_title": f"{short} 필기 출제예상문제 {ln}강 | {n}문항 풀이 (문항별 챕터)",
+        "yt_hook": f"{short} 필기 출제예상문제 {ln}강, {n}문항을 한 문항씩 풀이합니다.",
+        "yt_basis": "자체 집필 문항입니다.",
         "tags": [short, exam, f"{short} 필기", f"{short} {subj}", f"{short} 출제예상문제", lt, "필기 해설"],
-        "thumb_big": f"{ln}강", "thumb_line1": f"{ln}강 {lt}", "thumb_line2": lt if len(lt) <= 16 else subj,   # 긴 강 제목(L05 등)은 썸네일을 넘친다 → 과목명
+        "thumb_big": f"{ln}강", "thumb_line1": f"{ln}강", "thumb_line2": subj,
         "thumb_num": f"{ln:02d}",
         "thumb_tag": f"{short} 필기 출제예상문제",
         "playlist": f"{short} 필기 출제예상문제(강별)",
         "prompt_role": f"{exam} 시험 전문 강사",
-        "prompt_head": f"{short} 출제예상문제 {ln}강 {lt} {{no}}번",
+        "prompt_head": f"{short} 출제예상문제 {ln}강 {{no}}번",
         "prompt_basis": "정답",
     }
 

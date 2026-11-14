@@ -82,6 +82,32 @@ def _run_mock(job: Job, force: bool) -> None:
     job.mark("s0", quizzes=len(questions))
 
 
+_BOLD_FONTS = [Path(r"C:\Windows\Fonts\malgunbd.ttf"), ROOT / "studio" / "fonts" / "malgunbd.ttf"]
+
+
+def _renumber(page, old: int, new: int) -> bool:
+    """쪽에서 문항 번호 글자(「24.」, 굵은 글꼴, 왼쪽 여백)를 지우고 같은 자리·크기·색으로 「1.」을 쓴다."""
+    import pymupdf as fitz
+    hit = None
+    for b in page.get_text("dict")["blocks"]:
+        for ln in b.get("lines", []):
+            for s in ln["spans"]:
+                if s["text"].strip() == f"{old}." and "bold" in s["font"].lower():
+                    if hit is None or s["bbox"][0] < hit["bbox"][0]:
+                        hit = s
+    if not hit:
+        return False
+    x0, y0, x1, y1 = hit["bbox"]
+    page.add_redact_annot(fitz.Rect(x0, y0 + 1, x1, y1 - 1), fill=False)
+    page.apply_redactions(images=fitz.PDF_REDACT_IMAGE_NONE, graphics=fitz.PDF_REDACT_LINE_ART_NONE)
+    font = next((f for f in _BOLD_FONTS if f.exists()), None)
+    c = hit["color"]
+    page.insert_text(hit["origin"], f"{new}.", fontsize=hit["size"], fontname="qnum" if font else "hebo",
+                     fontfile=str(font) if font else None,
+                     color=((c >> 16 & 255) / 255, (c >> 8 & 255) / 255, (c & 255) / 255))
+    return True
+
+
 def _run_lecture(job: Job, force: bool) -> None:
     """3부 강 행: 여러 회차(11~20회)에서 이 강에 배정된 문항만 — 문항이 있는 쪽을 원래 시험지에서 이어 붙여 paper.pdf,
     문항은 강 안에서 1번부터 새로 센다. 문항 영역(regions)은 쪽 비율 좌표라 쪽 번호만 바꿔 옮긴다.
@@ -115,6 +141,12 @@ def _run_lecture(job: Job, force: bool) -> None:
         for rc, p in order:
             with fitz.open(src_book / rc / "exam.pdf") as src:
                 out.insert_pdf(src, from_page=p - 1, to_page=p - 1)
+        # 시험지 위 원래 번호(「24.」)를 강 안 번호(「1.」)로 — 화면에 원래 회차·번호가 드러나지 않게
+        for i, q in enumerate(qs, 1):
+            rc = f"m{q['round']:02d}"
+            first = min(r["pageNo"] for r in full[rc]["regions"] if int(r["quizNo"]) == q["no"])
+            if not _renumber(out[page_of[(rc, first)] - 1], q["no"], i):
+                log(f"  · {q['round']}회 {q['no']}번: 시험지에서 번호 글자를 못 찾아 그대로 둠")
         part_pdf = job.dir / "paper.pdf"
         out.save(part_pdf)
         out.close()
@@ -145,7 +177,7 @@ def _run_lecture(job: Job, force: bool) -> None:
         "choiceCount": max(4, sum(1 for r in regions if r.get("kind") == "choice" and r["quizNo"] == i)),
         "keywords": [],
     } for i, q in enumerate(qs, 1)])
-    # 대본: 원래 회차의 문항별 대본 — 번호만 강 안 번호로, 장 제목은 「11회 7번 · …」
+    # 대본: 원래 회차의 문항별 대본 — 번호는 강 안 번호로, 장 제목은 「1번 · 주제」(원래 회차·번호는 source 에만)
     job.scripts.mkdir(parents=True, exist_ok=True)
     copied = 0
     for i, q in enumerate(qs, 1):
@@ -155,7 +187,7 @@ def _run_lecture(job: Job, force: bool) -> None:
         if force or not b.exists():
             d = read_json(a)
             topic = re.sub(r"^\s*\d+\s*번\s*[·:\-]?\s*", "", d.get("chapter_title") or "")
-            d.update(no=i, chapter_title=f"{q['round']}회 {q['no']}번" + (f" · {topic}" if topic else ""),
+            d.update(no=i, chapter_title=f"{i}번" + (f" · {topic}" if topic else ""),
                      source={"round": q["round"], "no": q["no"]})
             write_json(b, d)
             copied += 1
