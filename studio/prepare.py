@@ -4,6 +4,7 @@
 """
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -81,8 +82,92 @@ def _run_mock(job: Job, force: bool) -> None:
     job.mark("s0", quizzes=len(questions))
 
 
+def _run_lecture(job: Job, force: bool) -> None:
+    """3부 강 행: 여러 회차(11~20회)에서 이 강에 배정된 문항만 — 문항이 있는 쪽을 원래 시험지에서 이어 붙여 paper.pdf,
+    문항은 강 안에서 1번부터 새로 센다. 문항 영역(regions)은 쪽 비율 좌표라 쪽 번호만 바꿔 옮긴다.
+    화면에는 문항 영역만 잘려 나가므로(boards.crop) 같은 쪽의 다른 문항은 보이지 않는다."""
+    import shutil
+    import pymupdf as fitz
+    m = job.meta
+    book, src_book = job.book, Path(m["book_dir"]) / "07"
+    qs = m["questions"]
+    full = {}
+    for rc in sorted({f"m{q['round']:02d}" for q in qs}):       # 회차마다 문항 영역 한 번(작업 폴더에 남겨 다시 안 함)
+        d = job.dir / "_full" / rc
+        if force or not (d / "regions.json").exists():
+            log(f"s0 원문: {rc}/exam.pdf 문항 영역 찾기")
+            _py("regions.py", str(src_book / rc / "exam.pdf"), str(d), "--columns", "1")
+        full[rc] = {"regions": read_json(d / "regions.json", []), "questions": read_json(d / "questions.json", []),
+                    "key": {int(k): int(v) for k, v in (read_json(src_book / rc / "answers.json", {}) or {}).items()}}
+
+    if force or not (book / "pages.json").exists() or not (book / "regions.json").exists():
+        order, page_of = [], {}                  # (회차, 원래 쪽) → 새 쪽
+        for q in qs:
+            rc = f"m{q['round']:02d}"
+            pgs = sorted({r["pageNo"] for r in full[rc]["regions"] if int(r["quizNo"]) == q["no"]})
+            if not pgs:
+                raise RuntimeError(f"{q['round']}회 {q['no']}번을 시험지에서 찾지 못했습니다")
+            for p in pgs:
+                if (rc, p) not in page_of:
+                    order.append((rc, p))
+                    page_of[(rc, p)] = len(order)
+        out = fitz.open()
+        for rc, p in order:
+            with fitz.open(src_book / rc / "exam.pdf") as src:
+                out.insert_pdf(src, from_page=p - 1, to_page=p - 1)
+        part_pdf = job.dir / "paper.pdf"
+        out.save(part_pdf)
+        out.close()
+        if m.get("paper") != str(part_pdf):
+            m["paper"] = str(part_pdf)
+            write_json(job.dir / "job.json", m)
+        _py("render.py", str(part_pdf), str(book), "--id", job.book_id, "--title", m["title"], "--exam", m["exam"],
+            "--subject", m["subject"], "--year", str(m["year"]), "--round", m["round_label"])
+        regions, questions = [], []
+        for i, q in enumerate(qs, 1):
+            rc = f"m{q['round']:02d}"
+            for r in full[rc]["regions"]:
+                if int(r["quizNo"]) == q["no"]:
+                    regions.append({**r, "quizNo": i, "pageNo": page_of[(rc, r["pageNo"])]})
+            src_q = next((x for x in full[rc]["questions"] if int(x["no"]) == q["no"]), None)
+            first_page = min(page_of[(rc, r["pageNo"])] for r in full[rc]["regions"] if int(r["quizNo"]) == q["no"])
+            questions.append({**(src_q or {}), "no": i, "pageNo": first_page, "round": q["round"], "origNo": q["no"]})
+        write_json(book / "regions.json", regions)
+        write_json(book / "questions.json", questions)
+        log(f"s0 원문: {len(qs)}문항 · {len(order)}쪽을 {len({r for r, _ in order})}개 회차에서 이어 붙임")
+
+    questions = read_json(book / "questions.json", [])
+    regions = read_json(book / "regions.json", [])
+    if len(questions) != len(qs):
+        raise RuntimeError(f"문항 {len(questions)}개만 있습니다({len(qs)}개여야 함) — s0 --force 로 다시")
+    write_json(book / "quizzes.json", [{
+        "no": i, "answer": full[f"m{q['round']:02d}"]["key"][q["no"]], "answers": [full[f"m{q['round']:02d}"]["key"][q["no"]]],
+        "choiceCount": max(4, sum(1 for r in regions if r.get("kind") == "choice" and r["quizNo"] == i)),
+        "keywords": [],
+    } for i, q in enumerate(qs, 1)])
+    # 대본: 원래 회차의 문항별 대본 — 번호만 강 안 번호로, 장 제목은 「11회 7번 · …」
+    job.scripts.mkdir(parents=True, exist_ok=True)
+    copied = 0
+    for i, q in enumerate(qs, 1):
+        a, b = src_book / f"m{q['round']:02d}" / "script" / f"q{q['no']:02d}.json", job.scripts / f"q{i:02d}.json"
+        if not a.exists():
+            raise RuntimeError(f"{a} 가 없습니다 — xam-local 로 {q['round']}회 대본을 먼저 구우세요")
+        if force or not b.exists():
+            d = read_json(a)
+            topic = re.sub(r"^\s*\d+\s*번\s*[·:\-]?\s*", "", d.get("chapter_title") or "")
+            d.update(no=i, chapter_title=f"{q['round']}회 {q['no']}번" + (f" · {topic}" if topic else ""),
+                     source={"round": q["round"], "no": q["no"]})
+            write_json(b, d)
+            copied += 1
+    log(f"s0 대본 {copied}개 가져옴 (강 안 번호로)")
+    boards.crop(job, force)
+    job.mark("s0", quizzes=len(qs))
+
+
 def run(job: Job, force: bool = False) -> None:
     m = job.meta
+    if m.get("unit") == "lecture":
+        return _run_lecture(job, force)
     if m.get("kind") == "mock":
         return _run_mock(job, force)
     book = job.book

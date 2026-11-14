@@ -12,7 +12,8 @@
 |---|---|
 | `setup.bat` | 처음 한 번. 파이썬 가상환경, SuperTonic3 목소리 모델(약 400MB), 포터블 PHP, 웹 빌드, 로컬 DB |
 | `youtube-login.bat` | 처음 한 번. 이 폴더 전용 Chrome 프로필로 유튜브에 로그인하고 채널 선택 |
-| `run.bat` | 스튜디오 대시보드(http://127.0.0.1:5300)를 연다. 머리의 「로컬 해설북 열기」를 누르면 완성작 이북이 http://127.0.0.1:5301 에 뜬다. `run.bat <명령>`은 CLI |
+| `engine\backplate\setup.bat` | 처음 한 번. 1부 강의 렌더 엔진(자체 `.venv-app`·node 모듈) |
+| `run.bat` | 스튜디오 대시보드(http://127.0.0.1:5300)를 연다. 머리의 「로컬 해설북 열기」를 누르면 완성작 이북이 http://127.0.0.1:5301 에 뜬다. `run.bat <명령>`은 CLI, `run.bat lc <명령>`은 1부 강의 CLI |
 | `lan-run.bat` | 같은 대시보드를 사내 랜에 공유. 다른 PC에서 `http://<이 PC IP>:5300`, 완성작 이북은 `:5301`(검수 모드, 이메일만 입력). 랜의 누구나 작업·업로드를 돌릴 수 있으니 외부에 열지 말 것 |
 
 준비물(PATH): Python 3.11 이상, Node 20 이상, ffmpeg(`winget install Gyan.FFmpeg`), Google Chrome, `claude` CLI(로그인).
@@ -73,6 +74,35 @@ run.bat make --job com2-m06-p2
 - 엑셀 함수명은 과목 사전 `studio/dict/spreadsheet.yaml`이 읽는다.
 - 남는 것은 대시보드 ⑤ 음성 체크에서 고친다.
 
+## 필기 생산 — 1부 강의 · 2부 문제풀이 · 3부 강별 문제
+
+필기(SQLD, 컴활 2급 등)는 이 스튜디오 한 곳에서 만든다. 옛 강의 앱(Lecture Composer, 261001)을 여기로 합쳤다.
+작업 순서: xam-local 필기3(시험지·대본) → 이 스튜디오. 실기는 따로 261110 앱에서 만든다.
+
+대시보드 상단에서 과목을 고르면 왼쪽 사이드바가 세 묶음으로 나뉜다.
+
+| 묶음 | 내용 | 사이트 |
+|---|---|---|
+| 1부 · 강의 | 종합반(시험 범위 전체 강의). `longform/` 앱을 `/lc/`에 붙여 화면 안에 띄운다. 과정은 `jobs/<과정>/`(예: `jobs/sqld`, `jobs/com2-27`) | 종합반 |
+| 2부 · 문제풀이 | 모의고사 1~10회, 회차 × 과목(또는 10문항씩) 영상 | 풀이반 · 보강 풀이반 |
+| 3부 · 강별 문제 | 11~15회 문항을 종합반 강(L01~)마다 모은 영상. 잡 id는 `sqld-L01`, `com2-L01` | 강별 출제예상문제반 |
+
+3부 만드는 법:
+1. 「① 강별로 나누기」 — `studio/lecture_map.py`가 문항마다 강을 정한다. 순서는 요약집의 「N회 M번」 인용 → 태그 → 사람이 직접(칩을 눌러 옮김). 결과는 `_assets/lecture_map/<code>.json`.
+2. 「② 만들기」부터는 2부와 같다(s0~s5). s0는 문항마다 자기 회차 시험지에서 잘라 한 `paper.pdf`로 잇고, 강 안에서 1번부터 다시 번호를 매긴다. 장 제목은 「11회 7번 · 주제」.
+- 강별로 묶을 회차는 `_assets/mocks.json` 시리즈의 `lecture_rounds`(지금 11~15회), 1부 과정은 `lecture_job`으로 정한다.
+- 배정이 바뀐 강은 처음부터 다시 만든다.
+
+1부 강의 설정:
+- 강의 예시 문항은 `curriculum.example_rounds`(11~20회)에서만 고른다(`longform/s1_curriculum.job_rounds`).
+- 책(종합본 교재)은 중간 연습문제를 뺀다. `book_export.with_problems: false`이면 문제 없는 판을 한 번만 묶는다. 그 문항은 3부 영상이 맡는다. 강의 영상 속 예시는 그대로 둔다.
+- 강의 쪽 자세한 설명은 [docs/강의/README-강의.md](docs/강의/README-강의.md).
+
+```bat
+run.bat lc status --job sqld                :: 1부 강의 과정 상태
+run.bat queue --items sqld-L01,sqld-L02 --stages s0,s1,s2,s3,s4,s5   :: 3부 강 행 굽기
+```
+
 ## 구성
 
 ```
@@ -83,6 +113,10 @@ apps/desktop      Tauri 2 셸 (Windows/macOS/Linux) — 사이트 URL 로드, �
 apps/mobile       Capacitor 6 셸 (iOS/Android) — 사이트 URL 로드, 딥링크
 tools/pipeline    기출 PDF → 페이지 WebP·문항 영역·해설(DeepSeek 선택)·패키지
 studio            해설 영상 스튜디오 (python -m studio · 대시보드 :5300) — TTS·렌더·유튜브 업로드 내장
+longform          1부 강의(종합반) 앱 — 대시보드 /lc/ 에 붙음, CLI 는 run.bat lc
+engine/backplate  1부 강의 렌더 엔진(자체 venv)
+jobs              1부 강의 과정(로컬 전용, 예시 job.json 만 저장소에)
+_new/whiteboard   화이트보드 판서 실험
 _assets           기출 원문 PDF·최종정답 (연도별, 저장소 제외)
 deploy/cafe24     Cafe24 업로드 묶음 생성
 e2e               Playwright E2E

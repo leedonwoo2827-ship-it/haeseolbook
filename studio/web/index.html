@@ -12,9 +12,21 @@ header{background:var(--hd);color:#fff;padding:12px 18px;display:flex;flex-wrap:
 header h1{margin:0;font-size:20px;white-space:nowrap}
 header select{font:inherit;background:#13304d;color:#fff;border:1px solid #4d7398;border-radius:8px;padding:6px 10px}
 .st{display:flex;gap:14px;flex-wrap:wrap;font-size:14px}.st span::before{content:'●';margin-right:4px;color:#7ee39a}.st span.no::before{color:#ff8a7a}.st span.no{opacity:.85}
-nav{display:flex;gap:4px;margin-left:auto}
-nav button{font:inherit;font-weight:700;font-size:17px;background:none;border:0;color:#fff;padding:8px 14px;border-radius:10px;cursor:pointer}
-nav button.on{background:#fff;color:var(--hd)}
+[hidden]{display:none!important}   /* .tiles{display:grid} 등이 hidden 을 이기지 않게 */
+/* 왼쪽 사이드바 — 실기 앱(261110)처럼 1부 · 강의 / 2부 · 문제풀이 */
+.shell{display:flex;align-items:flex-start}
+aside.side{position:sticky;top:0;width:200px;flex:0 0 200px;height:100vh;overflow:auto;background:var(--hd);padding:14px 10px;border-top:1px solid #2c5f8f}
+aside.side nav{display:flex;flex-direction:column;gap:2px}
+aside.side .grp{color:#9DC3E6;font-size:11.5px;font-weight:800;letter-spacing:.02em;margin:14px 6px 4px}
+aside.side .grp:first-child{margin-top:2px}
+aside.side .gsub{font-weight:600;opacity:.75;margin-left:4px}
+.lm td{vertical-align:top}.lm .q{display:inline-block;font-size:12.5px;background:#eef3f9;border:1px solid #d5e1ee;border-radius:7px;padding:1px 7px;margin:2px 3px 2px 0;cursor:pointer}.lm .q:hover{border-color:var(--navy)}.lm .q.manual{background:var(--warnbg);border-color:#f0c060}.lm .q.tags{background:#f3f0fb;border-color:#d9d0f0}
+aside.side nav button{background:transparent;border:0;color:#dbe8f5;padding:8px 12px;border-radius:8px;cursor:pointer;font:inherit;font-weight:600;text-align:left;white-space:nowrap}
+aside.side nav button:hover{background:rgba(255,255,255,.08)}
+aside.side nav button.on{background:#fff;color:var(--hd)}
+.shell>main{flex:1;min-width:0}
+@media(max-width:800px){.shell{flex-direction:column}aside.side{position:static;width:100%;flex:none;height:auto}aside.side nav{flex-direction:row;flex-wrap:wrap}}
+#lcframe{width:100%;height:calc(100vh - 150px);min-height:520px;border:0;border-radius:12px;background:#fff}
 .stopbar{width:100%;display:flex;gap:10px;align-items:center}
 .stopbar button{font:inherit;background:#2c5f8f;border:1px solid #6d95bd;color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer}
 .stopbar button:disabled{opacity:.5;cursor:default}
@@ -100,10 +112,32 @@ mark.left{background:#fde8e6;color:var(--bad)}
   <h1>해설북 · 스튜디오</h1>
   <select id="subject"></select>
   <div class="st" id="tools"></div>
-  <nav><button data-tab="src">① 원문</button><button data-tab="make" class="on">② 만들기</button><button data-tab="view">③ 결과 보기</button><button data-tab="voice">④ 음성 체크</button><button data-tab="post">⑤ 올리기</button></nav>
   <div class="stopbar"><button id="stop">■ 멈춤</button><span class="run" id="runinfo"></span><span style="flex:1"></span><a href="#" id="ebook" style="color:#fff" title="완성작(이북 리더)을 5301 포트에 띄워 엽니다">로컬 해설북 열기 ↗</a></div>
 </header>
+<div class="shell">
+<aside class="side">
+  <nav>
+    <div class="grp">1부 · 강의</div>
+    <button data-lc="newjob">① 원고</button>
+    <button data-lc="dash">② 만들기</button>
+    <button data-lc="view">③ 결과 보기</button>
+    <button data-lc="voice">④ 음성 체크</button>
+    <div class="grp">2부 · 문제풀이 <span class="gsub">1~10회</span></div>
+    <button data-tab="src" data-part="2">① 원문</button>
+    <button data-tab="make" data-part="2" class="on">② 만들기</button>
+    <button data-tab="view" data-part="2">③ 결과 보기</button>
+    <button data-tab="voice" data-part="2">④ 음성 체크</button>
+    <button data-tab="post" data-part="2">⑤ 올리기</button>
+    <div class="grp">3부 · 강별 문제 <span class="gsub" id="p3sub">11~20회</span></div>
+    <button data-tab="lmap" data-part="3">① 강별로 나누기</button>
+    <button data-tab="make" data-part="3">② 만들기</button>
+    <button data-tab="view" data-part="3">③ 결과 보기</button>
+    <button data-tab="voice" data-part="3">④ 음성 체크</button>
+    <button data-tab="post" data-part="3">⑤ 올리기</button>
+  </nav>
+</aside>
 <main>
+  <section id="tab-lc" hidden><p class="muted" id="lcnone" hidden>이 과목은 아직 1부 강의 과정이 없습니다(<code>_assets/mocks.json</code> 의 <code>lecture_job</code>).</p><iframe id="lcframe" title="1부 · 강의"></iframe></section>
   <div class="guide" id="guide"></div>
   <div class="tiles" id="tiles"></div>
   <div id="waitbox"></div>
@@ -119,6 +153,14 @@ mark.left{background:#fde8e6;color:var(--bad)}
     <table><thead><tr><th><input type="checkbox" id="all"></th><th>회차</th><th id="datehead">시행일</th><th>원문</th><th>대본</th><th>판서</th><th>음성</th><th>화면</th><th>영상</th><th>업로드</th><th>이북</th></tr></thead><tbody id="rows"></tbody></table>
     <p class="guide" id="makenote" hidden style="margin:8px 0">📘 <b>교재 한글:</b> xam-local2에서 문제 PDF가 완료되면 <a href="#" data-go="src">① 원문</a> 탭의 「<b>hwpx 생성</b>」을 누르세요. 영상을 유튜브에 올린 뒤 한 번 더 누르면 정답·해설편에 과목별 QR이 찍힙니다.</p>
     <p class="muted">대본·판서는 Claude(구독)를 씁니다. 한도에 걸리면 재설정 시각까지 기다렸다 멈춘 문항부터 이어서 합니다. 끝난 문항·문장·화면은 다시 만들지 않습니다.</p>
+  </section>
+  <section id="tab-lmap" class="panel" hidden>
+    <div class="bar"><span class="lab">3부 문항(11~20회) → 1부 종합반 강별</span>
+      <button class="b navy" id="lmbuild">강별로 나누기(다시)</button><span class="muted" id="lminfo"></span></div>
+    <p class="muted">요약집 절마다 적힌 「모의 N회 M번」으로 강을 정하고, 표기가 없는 문항은 같은 과목에서 태그가 가장 많이 겹치는 강으로 보냅니다.
+      문항을 누르면 다른 강으로 옮길 수 있고, 옮긴 것(노란색)은 다시 나눠도 그대로입니다. 보라색 = 태그로 정한 문항.
+      나눈 뒤 <a href="#" data-go="make">② 만들기</a>에서 강을 골라 굽습니다(문항 구성이 바뀐 강은 처음부터 다시).</p>
+    <div id="lmbody"></div>
   </section>
   <section id="tab-src" class="panel" hidden>
     <h3 style="margin-top:0">원문 (<code>_assets</code>)</h3>
@@ -157,10 +199,11 @@ mark.left{background:#fde8e6;color:var(--bad)}
   </section>
   <pre class="log" id="log"></pre>
 </main>
+</div>
 <script>
 const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
 const fmt=s=>`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
-let O=null, sel=new Set(), subject='컴퓨터일반', viewId=null;
+let O=null, sel=new Set(), subject='컴퓨터일반', viewId=null, part=2;   // part 2 = 문제풀이(회차) · 3 = 강별 문제
 try{subject=localStorage.getItem('hsb.subject')||subject}catch{}
 async function api(p,o={}){const r=await fetch(p,{headers:{'Content-Type':'application/json'},...o});if(!r.ok){let t=await r.text();try{t=JSON.parse(t).detail||t}catch{};throw new Error(t)}return r.json()}
 const chip=(ok,txt,cls)=>`<span class="c ${ok?(cls||'ok'):'no'}">${esc(txt)}</span>`;
@@ -189,8 +232,34 @@ function renderGuide(T){
   $('#srcnote').innerHTML=mock?'모의고사 시험지는 xam-local2 「이북 시험지」가 굽는 <code>07/&lt;mNN&gt;/</code> 를 씁니다. 새 회차는 거기서 굽고 <code>run.bat new-mock …</code> 으로 추가합니다.'
     :'새 연도는 <code>_assets/&lt;연도&gt;/</code> 에 문제 PDF와 최종정답 PDF를 넣고 <code>_assets/index.json</code> 에 추가합니다.';
 }
+// 1부 · 강의 — 강의 앱(/lc/)을 화면 안에 띄운다. 과목 → 강의 과정은 mocks.json 의 lecture_job
+let lcTab='dash';
+function showLecture(t){lcTab=t||lcTab;const job=O&&O.lecture_job;$('#lcnone').hidden=!!job;$('#lcframe').hidden=!job;if(!job)return;
+  const f=$('#lcframe'),base=`/lc/?job=${encodeURIComponent(job)}&embed=1`;
+  if(f.dataset.job!==job){f.dataset.job=job;f.src=`${base}#${lcTab}`}else{try{f.contentWindow.location.hash=lcTab}catch{f.src=`${base}#${lcTab}`}}}
+// 3부 ① 강별로 나누기 — _assets/lecture_map/<code>.json
+async function loadMap(){
+  const code=O&&O.code;if(!code||!(O.lecture_rounds||[]).length){$('#lmbody').innerHTML='<p class="muted">이 과목은 3부(강별 문제)를 쓰지 않습니다 — <code>_assets/mocks.json</code> 의 <code>lecture_job</code>·<code>lecture_rounds</code>.</p>';$('#lminfo').textContent='';return}
+  const M=await api('/api/lecture_map/'+code);
+  if(!M.lectures){$('#lmbody').innerHTML='<p class="muted">아직 나누지 않았습니다 — 「강별로 나누기」를 누르세요.</p>';return}
+  const n=M.lectures.reduce((a,L)=>a+L.questions.length,0);
+  $('#lminfo').textContent=`${M.rounds[0]}~${M.rounds[M.rounds.length-1]}회 ${n}문항 → ${M.lectures.length}강 · 못 정함 ${(M.unassigned||[]).length} · ${M.built}`;
+  const q=(x,lid)=>`<span class="q ${x.how||''}" data-mv="${x.round}|${x.no}" data-from="${lid||''}" title="${x.how==='manual'?'직접 옮김':x.how==='tags'?'태그로 정함':'요약집 인용'} — 눌러서 다른 강으로">${x.round}회 ${x.no}번</span>`;
+  $('#lmbody').innerHTML=`<table class="lm"><thead><tr><th>강</th><th>제목</th><th>문항</th><th>수</th></tr></thead><tbody>`+
+    M.lectures.map(L=>`<tr><td><b>${esc(L.id)}</b></td><td>${esc(L.title)}<div class="muted">${esc(L.subject)}</div></td><td>${L.questions.map(x=>q(x,L.id)).join('')}</td><td>${L.questions.length}</td></tr>`).join('')+
+    ((M.unassigned||[]).length?`<tr><td><b>?</b></td><td>못 정함</td><td>${M.unassigned.map(x=>q(x,'')).join('')}</td><td>${M.unassigned.length}</td></tr>`:'')+`</tbody></table>`;
+}
+document.addEventListener('click',async e=>{
+  if(e.target.id==='lmbuild'){e.target.disabled=true;try{await api(`/api/lecture_map/${O.code}/build`,{method:'POST'});await loadMap();load()}catch(err){alert(err.message)}e.target.disabled=false;return}
+  const mv=e.target.closest('[data-mv]');if(!mv)return;
+  const [r,no]=mv.dataset.mv.split('|');const to=(prompt(`${r}회 ${no}번을 어느 강으로 옮길까요? (예: L05)`,mv.dataset.from)||'').trim().toUpperCase();
+  if(!to||to===mv.dataset.from)return;
+  try{await api(`/api/lecture_map/${O.code}/move`,{method:'POST',body:JSON.stringify({round:+r,no:+no,to})});await loadMap();load()}catch(err){alert(err.message)}
+});
 async function load(){
-  O=await api('/api/overview?subject='+encodeURIComponent(subject));
+  O=await api('/api/overview?subject='+encodeURIComponent(subject)+'&part='+part);
+  {const lr=O.lecture_rounds||[];$('#p3sub').textContent=lr.length?`${lr[0]}~${lr[lr.length-1]}회`:'없음'}
+  if(!$('#tab-lc').hidden&&$('#lcframe').dataset.job!==(O.lecture_job||''))showLecture();   // 과목을 바꿨을 때만(주기 새로고침엔 그대로)
   $('#subject').innerHTML=O.subjects.map(s=>`<option ${s===subject?'selected':''}>${esc(s)}</option>`).join('');
   const t=O.tools;$('#tools').innerHTML=[['claude','Claude'],['supertonic','SuperTonic3'],['ffmpeg','ffmpeg'],['php','PHP'],['chrome_profile','유튜브 로그인 프로필']].map(([k,n])=>`<span class="${t[k]?'':'no'}">${n}</span>`).join('');
   const A=await api('/api/accounts');if(document.activeElement!==$('#acc'))$('#acc').innerHTML=A.accounts.map(a=>`<option value="${esc(a.name)}" ${a.name===A.current?'selected':''}>채널: ${esc(a.label)}</option>`).join('');
@@ -240,9 +309,15 @@ document.addEventListener('change',e=>{
 });
 document.addEventListener('click',async e=>{
   const go=e.target.closest('[data-go]');
-  if(go){document.querySelector(`nav button[data-tab="${go.dataset.go}"]`)?.click();return}
+  if(go){e.preventDefault();document.querySelector(`nav button[data-tab="${go.dataset.go}"][data-part="${part}"]`)?.click();return}
   const nb=e.target.closest('nav button');
-  if(nb){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b===nb));['src','make','view','post','voice'].forEach(t=>$('#tab-'+t).hidden=t!==nb.dataset.tab);if(nb.dataset.tab==='voice')loadVoice();return}
+  if(nb){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b===nb));
+    const lc=nb.dataset.lc;['guide','tiles','waitbox'].forEach(id=>$('#'+id).hidden=!!lc);$('#tab-lc').hidden=!lc;
+    ['src','make','view','post','voice','lmap'].forEach(t=>$('#tab-'+t).hidden=!!lc||t!==nb.dataset.tab);
+    if(lc){showLecture(lc);return}
+    const np=+(nb.dataset.part||2);if(np!==part){part=np;sel.clear();viewId=null;load()}
+    if(nb.dataset.tab==='lmap'){$('#tiles').hidden=true;loadMap()}
+    if(nb.dataset.tab==='voice')loadVoice();return}
   const sb=e.target.closest('button[data-st]');
   if(sb){let items=[...sel].sort();
     if(sb.dataset.st.split(',').includes('post')){const bad=items.filter(k=>!voiceReady(O.rows.find(r=>r.key===k)?.voice));
@@ -263,7 +338,7 @@ document.addEventListener('click',async e=>{
   if(pu){const inp=document.querySelector(`input.purl[data-id="${pu.dataset.purl}"]`);try{const r=await api(`/api/jobs/${pu.dataset.purl}/posted`,{method:'POST',body:JSON.stringify({url:inp.value,visibility:$('#vis').value})});alert('저장했습니다: '+r.url+' — 이제 그 회차를 체크하고 「이북 연동」을 누르세요.');load()}catch(x){alert(x.message)}return}
   if(e.target.closest('#tab-voice')&&await voiceClick(e))return;
   const v=e.target.closest('a[data-view]');
-  if(v){e.preventDefault();viewId=v.dataset.view;document.querySelector('nav button[data-tab=view]').click();showView();return}
+  if(v){e.preventDefault();viewId=v.dataset.view;document.querySelector(`nav button[data-tab=view][data-part="${part}"]`).click();showView();return}
   const s=e.target.closest('button[data-save]');
   if(s){const box=s.closest('.quiz');const lines={read:[],solve:[],answer:[]};box.querySelectorAll('.line[data-k]').forEach(l=>lines[l.dataset.k].push({say:l.querySelector('.say').value,cap:l.querySelector('.cap').value}));
     await api(`/api/jobs/${viewId}/quiz/${box.dataset.no}`,{method:'PUT',body:JSON.stringify({lines})});s.textContent='저장됨 — 3→5 다시 돌리면 반영';setTimeout(()=>s.textContent='저장',2500)}

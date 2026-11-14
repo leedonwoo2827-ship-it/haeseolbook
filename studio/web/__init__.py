@@ -92,6 +92,23 @@ def mock_rows(series: Dict[str, Any]) -> List[Dict[str, Any]]:
                                  "exists": False}
             _status(r, jid)
             out.append(r)
+    # 회차 행 뒤에 강 행 — lecture_rounds(11~20회) 문항을 1부 강의 L01~ 마다 한 편(_assets/lecture_map/<code>.json)
+    if series.get("lecture_job") and series.get("lecture_rounds"):
+        from .. import lecture_map
+        try:
+            mp = lecture_map.load(series["code"]) or lecture_map.build(series["code"])
+        except Exception as e:                  # noqa: BLE001 — 강 행이 깨져도 회차 행은 보인다
+            print(f"[warn] 강 행 배정표: {e}", flush=True)
+            mp = None
+        for L in (mp or {}).get("lectures") or []:
+            if not L["questions"]:
+                continue
+            jid, n = f"{series['code']}-{L['id']}", len(L["questions"])
+            r = {"key": jid, "id": jid, "year": L["id"], "booklet": L["subject"], "qTotal": n, "noDest": True,
+                 "label": f"{L['id']} · {L['title']} ({n}문항)", "examDate": "", "dest": "강별", "files": [],
+                 "exists": False}
+            _status(r, jid)
+            out.append(r)
     return out
 
 
@@ -214,12 +231,16 @@ def create_app():
         return (Path(__file__).parent / "index.html").read_text(encoding="utf-8")
 
     @app.get("/api/overview")
-    def overview(subject: str = "컴퓨터일반"):
+    def overview(subject: str = "컴퓨터일반", part: int = 2):
+        """part 2 = 문제풀이(회차 행) · part 3 = 강별 문제(11~20회를 1부 강의 강마다 묶은 강 행)"""
         from ..job import mock_series
         idx = read_json(ROOT / "_assets" / "index.json", []) or []
         subjects = (sorted({e["subject"] for e in idx}) or ["컴퓨터일반"]) + [s["name"] for s in mock_series()]
-        rs = rows(subject)
-        return {"subjects": subjects, "rows": rs, "running": running(), "tools": tools(),
+        series = next((s for s in mock_series() if s.get("name") == subject), None) or {}
+        rs = [r for r in rows(subject) if (r.get("dest") == "강별") == (part == 3)]
+        lecture_job = series.get("lecture_job")
+        return {"subjects": subjects, "rows": rs, "running": running(), "tools": tools(), "lecture_job": lecture_job,
+                "part": part, "code": series.get("code"), "lecture_rounds": series.get("lecture_rounds") or [],
                 "totals": {
                     "rounds": len(rs), "script": sum(1 for r in rs if r.get("script") == (r.get("qTotal") or 20)),
                     "marks": sum(1 for r in rs if r.get("marksDone")),
@@ -652,6 +673,54 @@ def create_app():
         if not p or not p.exists():
             raise HTTPException(404)
         return FileResponse(p)
+
+    # ── 3부 · 강별 문제 — 11~20회 문항 → 1부 강의 강(L01~) 배정표
+    @app.get("/api/lecture_map/{code}")
+    def lecture_map_get(code: str):
+        from .. import lecture_map
+        return lecture_map.load(code) or {}
+
+    @app.post("/api/lecture_map/{code}/build")
+    def lecture_map_build(code: str):
+        """1부 강의 과정의 요약집 인용으로 다시 나눈다(사람이 옮긴 manual 은 그대로) — 이미 만든 강 잡은
+        문항 구성이 바뀌면 다음 실행 때 처음부터(job.create_lecture)"""
+        from .. import lecture_map
+        try:
+            return lecture_map.build(code)
+        except Exception as e:                  # noqa: BLE001
+            raise HTTPException(400, str(e))
+
+    @app.post("/api/lecture_map/{code}/move")
+    def lecture_map_move(code: str, body: Dict[str, Any] = Body(...)):
+        """문항 하나를 다른 강으로 — {round, no, to: "L05"}. how=manual 로 남아 다시 나눠도 지켜진다"""
+        from .. import lecture_map
+        mp = lecture_map.load(code)
+        if not mp:
+            raise HTTPException(404, "배정표가 없습니다 — 먼저 「강별로 나누기」")
+        r, n, to = int(body["round"]), int(body["no"]), str(body["to"])
+        if not any(L["id"] == to for L in mp["lectures"]):
+            raise HTTPException(400, f"{to} 강이 없습니다")
+        for L in mp["lectures"]:
+            L["questions"] = [q for q in L["questions"] if not (q["round"] == r and q["no"] == n)]
+        mp["unassigned"] = [u for u in mp.get("unassigned") or [] if not (u["round"] == r and u["no"] == n)]
+        L = next(L for L in mp["lectures"] if L["id"] == to)
+        L["questions"] = sorted(L["questions"] + [{"round": r, "no": n, "how": "manual"}], key=lambda q: (q["round"], q["no"]))
+        write_json(lecture_map.path(code), mp)
+        return mp
+
+    # ── 1부 · 강의(종합반) — 옛 Lecture Composer(261001) 앱을 /lc 아래에 그대로 붙인다.
+    #    강의 쪽 API·실행기(python -m longform …)는 손대지 않는다. 화면은 상대 주소라 /lc/ 에서도 돈다.
+    from fastapi.responses import RedirectResponse
+
+    @app.get("/lc", include_in_schema=False)
+    def lc_slash():
+        return RedirectResponse("/lc/")
+
+    try:
+        from longform.web.server import app as lc_app
+        app.mount("/lc", lc_app)
+    except Exception as e:                       # 강의 쪽이 깨져도 2부(문제풀이)는 그대로 돈다
+        print(f"[warn] 1부 강의 앱을 붙이지 못했습니다: {e}", flush=True)
 
     return app
 

@@ -36,7 +36,52 @@ def texts(m: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+_ONES = ["", "한", "두", "세", "네", "다섯", "여섯", "일곱", "여덟", "아홉"]
+_TENS = ["", "열", "스물", "서른", "마흔", "쉰", "예순", "일흔", "여든", "아흔"]
+
+
+def count_ko(n: int) -> str:
+    """문항 수를 고유어로 — 12 → 열두, 20 → 스무, 25 → 스물다섯 (99까지)"""
+    if n == 20:
+        return "스무"
+    if not 0 < n < 100:
+        return str(n)
+    return _TENS[n // 10] + _ONES[n % 10]
+
+
+def _lecture(m: Dict[str, Any]) -> Dict[str, Any]:
+    """3부 강 행 — 11~20회 문항을 1부 강의(종합반) 강마다 모은 한 편. 사이트의 「강별 출제예상문제반」"""
+    subj, exam = m["subject"], m["exam"]
+    short = m.get("short") or exam
+    lid, lt, n = m["lecture"], m["lecture_title"], len(m.get("questions") or [])
+    ln = int(m.get("lecture_no") or lid[1:])
+    rounds = sorted({q["round"] for q in m.get("questions") or []})
+    rr = f"{rounds[0]}~{rounds[-1]}회" if len(rounds) > 1 else (f"{rounds[0]}회" if rounds else "")
+    return {
+        "intro_say": f"{short} 출제 예상 문제, {ln}강 {lt}. 이 강에 해당하는 {count_ko(n)} 문항을 풀어 보겠습니다.",
+        "intro_cap": f"{short} 출제예상문제 {ln}강 · {lt} {n}문항",
+        "outro_say": f"이것으로 {ln}강 {lt} {count_ko(n)} 문항 풀이를 마칩니다.",
+        "outro_cap": f"{ln}강 {n}문항 풀이 끝",
+        "title_big": f"{ln}강 {lt}", "title_second": f"{short} 출제예상문제 · {subj}",
+        "title_small": f"{n}문항 풀이 · 모의고사 {rr}에서 · 문항별 챕터",
+        "title_num": f"{ln:02d}",
+        "yt_title": f"{short} 필기 출제예상문제 {ln}강 {lt} | {n}문항 풀이 (문항별 챕터)",
+        "yt_hook": f"{short} 종합반 {ln}강 「{lt}」에 해당하는 출제 예상 문제 {n}문항을 한 문항씩 풀이합니다.",
+        "yt_basis": f"자체 집필 모의고사 {rr} 문항을 강별로 모았습니다.",
+        "tags": [short, exam, f"{short} 필기", f"{short} {subj}", f"{short} 출제예상문제", lt, "필기 해설"],
+        "thumb_big": f"{ln}강", "thumb_line1": f"{ln}강 {lt}", "thumb_line2": lt if len(lt) <= 16 else subj,   # 긴 강 제목(L05 등)은 썸네일을 넘친다 → 과목명
+        "thumb_num": f"{ln:02d}",
+        "thumb_tag": f"{short} 필기 출제예상문제",
+        "playlist": f"{short} 필기 출제예상문제(강별)",
+        "prompt_role": f"{exam} 시험 전문 강사",
+        "prompt_head": f"{short} 출제예상문제 {ln}강 {lt} {{no}}번",
+        "prompt_basis": "정답",
+    }
+
+
 def _mock(m: Dict[str, Any]) -> Dict[str, Any]:
+    if m.get("unit") == "lecture":
+        return _lecture(m)
     subj, exam = m["subject"], m["exam"]          # 예: 스프레드시트 일반 · 컴퓨터활용능력 2급 필기
     short = m.get("short") or exam                  # 예: 컴활 2급
     rl = m["round_label"]                           # 예: 06회

@@ -43,5 +43,24 @@ __pycache__/
 server/config.lan.php
 _plan/
 
+# 1부 강의(longform, 옛 261001 Lecture Composer) — 과정(잡)은 이 PC 에만. 일반 예시만 올린다
+jobs/*
+!jobs/example/
+jobs/example/*
+!jobs/example/job.json
+!jobs/sqld-danjeong-sample/
+jobs/sqld-danjeong-sample/*
+!jobs/sqld-danjeong-sample/job.json
+local.json
+engine/showcase-out-*/
+_new/*.mp4
+_new/*.pdf
+
 # 회사 한글 양식 (로컬 전용)
 tools/html2hwpx/form.hwpx
+
+# 이 PC 전용 메모(절대 경로) — 옛 261001 docs/_local
+docs/강의/_local/
+
+# 회사 자료 (절대 커밋하지 않음)
+_context/
