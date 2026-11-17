@@ -117,7 +117,7 @@ MOCK_FILES = {"교재": ["교재 한권", "문제 한글", "해설 한글", "문
 
 
 def _mock_file(series: Dict[str, Any], rc: str, kind: str) -> Optional[Path]:
-    """xam-local2 가 구운 07/ 산출물 — 정답·해설편은 그 회차가 든 answers_mAA-mBB.hwpx"""
+    """xam-local3 가 구운 07/ 산출물 — 정답·해설편은 그 회차가 든 answers_mAA-mBB.hwpx"""
     d = Path(series["book"]) / "07"
     if kind in ("해설 한글", "교재 한권"):         # 교재 한 권 = textbook_mAA-mBB (문제편 전부 + 정답·해설편)
         n = int(rc[1:])
@@ -583,6 +583,58 @@ def create_app():
             _desc = f"{series['name']} · 교재 한글 만들기"
         return {"ok": True, "running": _desc}
 
+    # ── 모으기: 1부 끝 핵심요약본 · 2부 끝 최종모의고사 (studio/collect.py) ──────────────
+    def _collect_series(subject: str, part: int) -> Dict[str, Any]:
+        if part not in (1, 2):
+            raise HTTPException(404, "part 는 1 또는 2")
+        series = _series(subject)
+        if not series:
+            raise HTTPException(404, "모의고사 과목(컴활 2급·SQLD)에서만 모읍니다 — 위에서 과목을 고르세요")
+        return series
+
+    @app.get("/api/collect/{part}")
+    def collect_status(part: int, subject: str = ""):
+        from .. import collect
+        series = _collect_series(subject, part)
+        return {"code": series["code"], "short": series.get("short") or series["code"], **collect.status(series, part)}
+
+    @app.post("/api/collect/{part}")
+    def collect_run(part: int, body: Dict[str, Any] = Body(default={})):
+        """「모으기」 — 진행은 아래 기록 창(studio.log)"""
+        global _proc, _desc
+        series = _collect_series(str(body.get("subject", "")), part)
+        with _lock:
+            if running():
+                raise HTTPException(409, f"이미 실행 중입니다: {_desc}")
+            LOG.parent.mkdir(parents=True, exist_ok=True)
+            _proc = subprocess.Popen([sys.executable, "-m", "studio", "collect", "--code", series["code"], "--part", str(part)],
+                                     cwd=ROOT, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            _desc = f"{series['name']} · {part}부 {'핵심요약본' if part == 1 else '최종모의고사'} 모으기"
+        return {"ok": True, "running": _desc}
+
+    @app.post("/api/collect/{part}/folder")
+    def collect_folder(part: int, body: Dict[str, Any] = Body(default={})):
+        from .. import collect
+        d = collect.out_dir(_collect_series(str(body.get("subject", "")), part), part)
+        if not d.is_dir():
+            raise HTTPException(404, "아직 모으지 않았습니다 — 「모으기」를 먼저 누르세요")
+        os.startfile(str(d))  # type: ignore[attr-defined]
+        return {"ok": True, "path": str(d)}
+
+    @app.get("/api/collect/{part}/file")
+    def collect_file(part: int, subject: str, name: str):
+        """모은 파일 하나 내려받기 — 이름은 status 가 알려 준 것만(경로 섞기 막음)"""
+        from .. import collect
+        series = _collect_series(subject, part)
+        st = collect.status(series, part)
+        if name not in {x["name"] for x in st["outputs"] + st["copies"]}:
+            raise HTTPException(404, "모으기 결과에 없는 파일입니다")
+        f = collect.out_dir(series, part) / name
+        if not f.is_file():
+            raise HTTPException(404, "아직 모으지 않았습니다 — 「모으기」를 먼저 누르세요")
+        return FileResponse(f, filename=name)
+
     @app.post("/api/jobs/{job_id}/folder")
     def job_folder(job_id: str):
         """완성 영상 폴더(out/)를 탐색기로 연다 — 파일 시각으로 어느 판이 구워졌는지 본다"""
@@ -599,7 +651,7 @@ def create_app():
         series = _series(str(body.get("subject", ""))) or next(iter(mock_series()), None)
         d = Path(series["book"]) / "07" / "_textbook" if series else None   # 교재 한 권·정답해설편이 있는 곳
         if not d or not d.is_dir():
-            raise HTTPException(404, "07 폴더가 없습니다 — xam-local2 「HTML 문제집 제작」에서 먼저 구우세요")
+            raise HTTPException(404, "07 폴더가 없습니다 — xam-local3 「HTML 문제집 제작」에서 먼저 구우세요")
         os.startfile(str(d))  # type: ignore[attr-defined]
         return {"ok": True, "path": str(d)}
 
@@ -612,7 +664,7 @@ def create_app():
                        and int(m["rc"][1:]) in (e.get("rounds") or [])), None)
         p = _mock_file(series, m["rc"], str(body.get("kind", ""))) if series else None
         if not p:
-            raise HTTPException(404, "파일이 아직 없습니다 — xam-local2 「HTML 문제집 제작」에서 먼저 구우세요")
+            raise HTTPException(404, "파일이 아직 없습니다 — xam-local3 「HTML 문제집 제작」에서 먼저 구우세요")
         os.startfile(str(p))  # type: ignore[attr-defined]
         return {"ok": True, "path": str(p)}
 
@@ -621,7 +673,7 @@ def create_app():
         """회차 파일 하나 내려받기 — 이름은 「컴활 2급_교재 01회_문제.hwpx」처럼 알아보기 쉽게"""
         got = _mock_pick(job_id, kind)
         if not got:
-            raise HTTPException(404, "파일이 아직 없습니다 — xam-local2 「HTML 문제집 제작」에서 먼저 구우세요")
+            raise HTTPException(404, "파일이 아직 없습니다 — xam-local3 「HTML 문제집 제작」에서 먼저 구우세요")
         return FileResponse(got[0], filename=got[1])
 
     @app.get("/api/mock/bundle")

@@ -64,3 +64,6 @@ docs/강의/_local/
 
 # 회사 자료 (절대 커밋하지 않음)
 _context/
+
+# 모으기 결과(1부 핵심요약본 · 2부 최종모의고사) — studio/collect.py
+deliver/

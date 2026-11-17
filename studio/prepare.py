@@ -27,7 +27,7 @@ def _py(script: str, *args: str) -> None:
 
 
 def _run_mock(job: Job, force: bool) -> None:
-    """모의고사: 07/<mNN>/exam.pdf(1단 46배판) 에서 이 과목 문항이 있는 쪽만 이북으로, 정답·대본은 xam-local2 것을 그대로."""
+    """모의고사: 07/<mNN>/exam.pdf(1단 46배판) 에서 이 과목 문항이 있는 쪽만 이북으로, 정답·대본은 xam-local3 것을 그대로."""
     import shutil
     m = job.meta
     lo, hi = m["range"]
@@ -68,7 +68,7 @@ def _run_mock(job: Job, force: bool) -> None:
     } for q in questions])
     n_choice = sum(1 for r in regions if r.get("kind") == "choice")
     log(f"s0 정답 {len(questions)}개 반영 · 보기 칸 {n_choice}개(원문을 눌러 채점)")
-    # 대본: xam-local2 가 쓴 문항별 대본을 그대로 가져온다 → s1 은 Claude 없이 조립만
+    # 대본: xam-local3 가 쓴 문항별 대본을 그대로 가져온다 → s1 은 Claude 없이 조립만
     src = Path(m["scriptSrc"])
     job.scripts.mkdir(parents=True, exist_ok=True)
     copied = 0

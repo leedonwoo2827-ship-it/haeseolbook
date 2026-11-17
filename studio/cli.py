@@ -156,8 +156,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     p = sub.add_parser("export-aside", help="완성 영상을 롱폼 공방 작업 폴더로 내보내기(공방에서 업로드)")
     p.add_argument("--job", required=True)
     p.add_argument("--to", help="롱폼 공방 폴더 (기본: 환경변수 HSB_ASIDE_DIR 또는 D:\00work\261011-롱폼 세계사)")
-    p = sub.add_parser("hwpx", help="교재 회차 한글(HWPX) — 문제편·정답해설편·교재 한 권 (xam-local2 변환기)")
+    p = sub.add_parser("hwpx", help="교재 회차 한글(HWPX) — 문제편·정답해설편·교재 한 권 (xam-local3 변환기)")
     p.add_argument("--code", required=True, help="모의고사 시리즈 코드 (예: com2)")
+    p = sub.add_parser("collect", help="모으기 — 1부 끝 핵심요약본(PDF 1편) · 2부 끝 최종모의고사 1~5회(문제편·해설편) → deliver/<코드>/")
+    p.add_argument("--code", required=True, help="모의고사 시리즈 코드 (예: com2, sqld)")
+    p.add_argument("--part", required=True, type=int, choices=(1, 2), help="1 = 핵심요약본, 2 = 최종모의고사")
     p = sub.add_parser("login")
     p.add_argument("--account")
     for name in ("tts-setup", "doctor", "ui"):
@@ -270,6 +273,14 @@ def main(argv: Optional[List[str]] = None) -> int:
             if not series:
                 raise ValueError(f"_assets/mocks.json 에 {a.code} 시리즈가 없습니다")
             hwpx.run(series)
+        elif a.cmd == "collect":
+            from .job import mock_series
+            from . import collect
+            to_file(ROOT / "logs" / "studio.log")
+            series = next((e for e in mock_series() if e["code"] == a.code), None)
+            if not series:
+                raise ValueError(f"_assets/mocks.json 에 {a.code} 시리즈가 없습니다")
+            collect.run(series, a.part)
         elif a.cmd == "doctor":
             return doctor()
         elif a.cmd == "ui":
@@ -360,4 +371,4 @@ def post(job, visibility: str = "unlisted", dry_run: bool = False, force: bool =
         from .job import record_mock_video
         vp = record_mock_video(job, rec.get("url"))
         if vp:
-            log(f"  교재 QR 주소 기록: {vp} — xam-local2 「교재 정답·해설편」을 다시 만들면 QR 이 찍힙니다")
+            log(f"  교재 QR 주소 기록: {vp} — xam-local3 「교재 정답·해설편」을 다시 만들면 QR 이 찍힙니다")

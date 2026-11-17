@@ -24,6 +24,8 @@ aside.side .gsub{font-weight:600;opacity:.75;margin-left:4px}
 aside.side nav button{background:transparent;border:0;color:#dbe8f5;padding:8px 12px;border-radius:8px;cursor:pointer;font:inherit;font-weight:600;text-align:left;white-space:nowrap}
 aside.side nav button:hover{background:rgba(255,255,255,.08)}
 aside.side nav button.on{background:#fff;color:var(--hd)}
+aside.side nav button.on .gsub{color:var(--hd)}
+#colbody h3{margin:0 0 4px}#colbody table{margin:6px 0 14px}#colbody .warnbox{background:var(--warnbg);color:var(--warn);border-radius:8px;padding:8px 12px;margin:8px 0}
 .shell>main{flex:1;min-width:0}
 @media(max-width:800px){.shell{flex-direction:column}aside.side{position:static;width:100%;flex:none;height:auto}aside.side nav{flex-direction:row;flex-wrap:wrap}}
 #lcframe{width:100%;height:calc(100vh - 150px);min-height:520px;border:0;border-radius:12px;background:#fff}
@@ -122,12 +124,14 @@ mark.left{background:#fde8e6;color:var(--bad)}
     <button data-lc="dash">② 만들기</button>
     <button data-lc="view">③ 결과 보기</button>
     <button data-lc="voice">④ 음성 체크</button>
+    <button data-col="1" title="1부 강의 교재의 이론편(중간 연습문제 뺀 판) 과목 PDF를 1편으로 — 사이트 「핵심요약본」">⑤ 핵심요약본</button>
     <div class="grp">2부 · 문제풀이 <span class="gsub">1~10회</span></div>
     <button data-tab="src" data-part="2">① 원문</button>
     <button data-tab="make" data-part="2" class="on">② 만들기</button>
     <button data-tab="view" data-part="2">③ 결과 보기</button>
     <button data-tab="voice" data-part="2">④ 음성 체크</button>
     <button data-tab="post" data-part="2">⑤ 올리기</button>
+    <button data-col="2" title="1~5회 문제편 PDF 1편 + 정답·해설편 PDF 1편 — 사이트 「최종모의고사」">⑥ 최종모의고사 <span class="gsub" id="p2fin">1~5회</span></button>
     <div class="grp">3부 · 강별 문제 <span class="gsub" id="p3sub">11~20회</span></div>
     <button data-tab="lmap" data-part="3">① 강별로 나누기</button>
     <button data-tab="make" data-part="3">② 만들기</button>
@@ -151,7 +155,7 @@ mark.left{background:#fde8e6;color:var(--bad)}
       <label class="right"><input type="checkbox" id="force"> 이미 된 것 다시</label>
     </div>
     <table><thead><tr><th><input type="checkbox" id="all"></th><th>회차</th><th id="datehead">시행일</th><th>원문</th><th>대본</th><th>판서</th><th>음성</th><th>화면</th><th>영상</th><th>업로드</th><th>이북</th></tr></thead><tbody id="rows"></tbody></table>
-    <p class="guide" id="makenote" hidden style="margin:8px 0">📘 <b>교재 한글:</b> xam-local2에서 문제 PDF가 완료되면 <a href="#" data-go="src">① 원문</a> 탭의 「<b>hwpx 생성</b>」을 누르세요. 영상을 유튜브에 올린 뒤 한 번 더 누르면 정답·해설편에 과목별 QR이 찍힙니다.</p>
+    <p class="guide" id="makenote" hidden style="margin:8px 0">📘 <b>교재 한글:</b> xam-local3에서 문제 PDF가 완료되면 <a href="#" data-go="src">① 원문</a> 탭의 「<b>hwpx 생성</b>」을 누르세요. 영상을 유튜브에 올린 뒤 한 번 더 누르면 정답·해설편에 과목별 QR이 찍힙니다.</p>
     <p class="muted">대본·판서는 Claude(구독)를 씁니다. 한도에 걸리면 재설정 시각까지 기다렸다 멈춘 문항부터 이어서 합니다. 끝난 문항·문장·화면은 다시 만들지 않습니다.</p>
   </section>
   <section id="tab-lmap" class="panel" hidden>
@@ -167,7 +171,7 @@ mark.left{background:#fde8e6;color:var(--bad)}
     <div class="guide" id="hwpxbar" hidden style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 10px">
       <button class="b navy" id="hwpxgo">📘 hwpx 생성</button><a id="bookdl" hidden download>⬇ 교재 한 권(1~5회 문제+해설)</a>
       <span>교재 회차의 <b>문제편</b>(회차별)·<b>정답·해설편</b>·<b>교재 한 권</b>(문제+해설)을 한글로 만듭니다.
-        xam-local2에서 문제 PDF를 구운 뒤, 영상을 올린 뒤(QR) 누르세요. 진행은 아래 기록 창.</span>
+        xam-local3에서 문제 PDF를 구운 뒤, 영상을 올린 뒤(QR) 누르세요. 진행은 아래 기록 창.</span>
     </div>
     <div class="row" id="dlbar" hidden style="gap:8px;align-items:center;margin:0 0 8px">
       <b>고른 회차 모아 받기</b><span class="muted" id="dlinfo">(아직 안 골랐어요)</span>
@@ -179,6 +183,7 @@ mark.left{background:#fde8e6;color:var(--bad)}
     <table><thead><tr><th id="dlhead"></th><th>회차</th><th id="srcdatehead">시행일</th><th>문제지</th><th>작업</th></tr></thead><tbody id="srcrows"></tbody></table>
     <p class="muted" id="srcnote">새 연도는 <code>_assets/&lt;연도&gt;/</code> 에 문제 PDF와 최종정답 PDF를 넣고 <code>_assets/index.json</code> 에 추가합니다.</p>
   </section>
+  <section id="tab-collect" class="panel" hidden><div id="colbody"></div></section>
   <section id="tab-view" class="panel" hidden><div id="view"><p class="muted">② 만들기 표에서 회차 이름을 누르세요.</p></div></section>
   <section id="tab-post" class="panel" hidden>
     <div class="bar"><span class="lab">유튜브</span><select id="acc" title="올릴 채널(이 폴더의 Chrome 프로필)"></select><button class="b" id="login">로그인 창 열기</button>
@@ -227,9 +232,9 @@ function renderGuide(T){
   const next=steps.findIndex(s=>s[2]!==null&&s[2]<n);
   $('#guide').innerHTML=`<div class="flow"><b>순서</b>${steps.map((s,i)=>`${i?'<span class="ar">→</span>':''}<button class="g ${s[2]!==null&&n&&s[2]>=n?'done':''} ${i===next?'next':''}" data-go="${s[1]}">${s[0]}${s[2]!==null&&n&&s[2]<n&&s[2]>0?` ${s[2]}/${n}`:''}</button>`).join('')}</div>
     <div class="note">${mock
-      ?`${esc(subject)} · ${O.rows.length&&O.rows[0].booklet===''?`회차 통째 ${O.rows[0].qTotal}문항 = 영상 1편(1강)`:O.rows.length&&O.rows[0].noDest?`${O.rows[0].qTotal}문항씩 = 영상 1편`:'회차×과목 20문항 = 영상 1편·이북 1권'} · 대본은 xam-local2 원고 그대로(1 대본은 조립만, 2 판서부터 Claude) · 이북 미리 게시는 ⑤ 올리기의 「이북 연동」(업로드 전이면 교재만)`
+      ?`${esc(subject)} · ${O.rows.length&&O.rows[0].booklet===''?`회차 통째 ${O.rows[0].qTotal}문항 = 영상 1편(1강)`:O.rows.length&&O.rows[0].noDest?`${O.rows[0].qTotal}문항씩 = 영상 1편`:'회차×과목 20문항 = 영상 1편·이북 1권'} · 대본은 xam-local3 원고 그대로(1 대본은 조립만, 2 판서부터 Claude) · 이북 미리 게시는 ⑤ 올리기의 「이북 연동」(업로드 전이면 교재만)`
       :`${esc(subject)} 기출 · 회차 = 영상 1편·이북 1권 · 1 대본·2 판서는 Claude · 정답은 인사혁신처 최종정답 기준`}</div>`;
-  $('#srcnote').innerHTML=mock?'모의고사 시험지는 xam-local2 「이북 시험지」가 굽는 <code>07/&lt;mNN&gt;/</code> 를 씁니다. 새 회차는 거기서 굽고 <code>run.bat new-mock …</code> 으로 추가합니다.'
+  $('#srcnote').innerHTML=mock?'모의고사 시험지는 xam-local3 「이북 시험지」가 굽는 <code>07/&lt;mNN&gt;/</code> 를 씁니다. 새 회차는 거기서 굽고 <code>run.bat new-mock …</code> 으로 추가합니다.'
     :'새 연도는 <code>_assets/&lt;연도&gt;/</code> 에 문제 PDF와 최종정답 PDF를 넣고 <code>_assets/index.json</code> 에 추가합니다.';
 }
 // 1부 · 강의 — 강의 앱(/lc/)을 화면 안에 띄운다. 과목 → 강의 과정은 mocks.json 의 lecture_job
@@ -237,6 +242,26 @@ let lcTab='dash';
 function showLecture(t){lcTab=t||lcTab;const job=O&&O.lecture_job;$('#lcnone').hidden=!!job;$('#lcframe').hidden=!job;if(!job)return;
   const f=$('#lcframe'),base=`/lc/?job=${encodeURIComponent(job)}&embed=1`;
   if(f.dataset.job!==job){f.dataset.job=job;f.src=`${base}#${lcTab}`}else{try{f.contentWindow.location.hash=lcTab}catch{f.src=`${base}#${lcTab}`}}}
+// 1부 ⑤ 핵심요약본 · 2부 ⑥ 최종모의고사 — 각 부가 끝난 뒤 사이트에 올릴 PDF 를 deliver/<코드>/ 로 모은다 (studio/collect.py)
+let colPart=0;
+async function loadCollect(){
+  if(!colPart)return;const box=$('#colbody');let C;
+  try{C=await api(`/api/collect/${colPart}?subject=${encodeURIComponent(subject)}`)}catch(x){box.innerHTML=`<p class="muted">${esc(x.message)}</p>`;return}
+  const p1=colPart===1, run=!!(O&&O.running);
+  const intro=p1?`1부 강의 교재의 <b>이론편</b>(중간 연습문제를 뺀 판 — 문제는 없거나 절마다 출제예상문제 1문항) 과목 PDF를 과목 순서대로 <b>1편</b>으로 합칩니다. 과목별 한글(hwpx)은 옆에 복사만 합니다(합치지 않음).`
+    :`${esc(C.rounds)} 시험지 PDF를 합친 <b>문제편</b>과 정답·해설 PDF인 <b>해설편</b>, 이렇게 <b>2편</b>을 만듭니다. 해설편이 없거나 시험지보다 오래됐으면 xam-local3로 먼저 굽습니다(회차 문제 한글은 있으면 그대로 둡니다).`;
+  const warn=[...(C.missing.length?[`원본이 없습니다: ${C.missing.map(esc).join(', ')}`]:[]),
+    ...(C.changed.length?[`모은 뒤 원본이 바뀌었습니다: ${C.changed.map(esc).join(', ')} — 다시 모으세요`]:[]),
+    ...(C.answers_note?[`${esc(C.answers_note)} — 「모으기」를 누르면 해설편부터 굽습니다(몇 분 걸림)`]:[])];
+  const dl=n=>`/api/collect/${colPart}/file?subject=${encodeURIComponent(subject)}&name=${encodeURIComponent(n)}`;
+  box.innerHTML=`<h3>${esc(C.short)} · ${colPart}부 ${esc(C.title)}${p1?'':` ${esc(C.rounds)}`}</h3><p class="muted" style="margin:0 0 8px">${intro}</p>
+    <div class="bar"><button class="b navy" id="colgo" ${run?'disabled':''}>▶ 모으기</button><button class="b" id="colfolder">📂 폴더 열기</button>
+      <span class="muted">${C.built?`마지막으로 모은 때 ${esc(C.built)}`:'아직 모으지 않았습니다'} · <code>${esc(C.dir)}</code></span></div>
+    ${warn.map(w=>`<div class="warnbox">${w}</div>`).join('')}
+    <table><thead><tr><th>결과</th><th>파일</th><th>쪽</th><th>크기</th><th>만든 때</th><th></th></tr></thead><tbody>${C.outputs.map(o=>`<tr><td><b>${esc(o.label)}</b></td><td>${esc(o.name)}</td><td>${o.pages??''}</td><td>${o.mb!=null?o.mb+'MB':''}</td><td class="muted">${esc(o.time)}</td><td>${o.ok?`<a href="${dl(o.name)}" download>⬇ 받기</a>`:chip(false,'아직')}</td></tr>`).join('')}
+      ${C.copies.map(o=>`<tr><td class="muted">${esc(o.label)}</td><td class="muted">${esc(o.name)}</td><td></td><td></td><td></td><td>${o.ok?`<a href="${dl(o.name)}" download>⬇ 한글</a>`:chip(false,'—')}</td></tr>`).join('')}</tbody></table>
+    <table><thead><tr><th>원본</th><th>있음</th><th>수정 시각</th><th>경로</th></tr></thead><tbody>${C.sources.map(r=>`<tr><td>${esc(r.label)}</td><td>${chip(r.ok,r.ok?'있음':'없음')}</td><td class="muted">${esc(r.time)}</td><td class="muted" style="font-size:12px">${esc(r.path)}</td></tr>`).join('')}</tbody></table>`;
+}
 // 3부 ① 강별로 나누기 — _assets/lecture_map/<code>.json
 async function loadMap(){
   const code=O&&O.code;if(!code||!(O.lecture_rounds||[]).length){$('#lmbody').innerHTML='<p class="muted">이 과목은 3부(강별 문제)를 쓰지 않습니다 — <code>_assets/mocks.json</code> 의 <code>lecture_job</code>·<code>lecture_rounds</code>.</p>';$('#lminfo').textContent='';return}
@@ -259,6 +284,7 @@ document.addEventListener('click',async e=>{
 async function load(){
   O=await api('/api/overview?subject='+encodeURIComponent(subject)+'&part='+part);
   {const lr=O.lecture_rounds||[];$('#p3sub').textContent=lr.length?`${lr[0]}~${lr[lr.length-1]}회`:'없음'}
+  if(!$('#tab-collect').hidden)loadCollect();
   if(!$('#tab-lc').hidden&&$('#lcframe').dataset.job!==(O.lecture_job||''))showLecture();   // 과목을 바꿨을 때만(주기 새로고침엔 그대로)
   $('#subject').innerHTML=O.subjects.map(s=>`<option ${s===subject?'selected':''}>${esc(s)}</option>`).join('');
   const t=O.tools;$('#tools').innerHTML=[['claude','Claude'],['supertonic','SuperTonic3'],['ffmpeg','ffmpeg'],['php','PHP'],['chrome_profile','유튜브 로그인 프로필']].map(([k,n])=>`<span class="${t[k]?'':'no'}">${n}</span>`).join('');
@@ -312,9 +338,11 @@ document.addEventListener('click',async e=>{
   if(go){e.preventDefault();document.querySelector(`nav button[data-tab="${go.dataset.go}"][data-part="${part}"]`)?.click();return}
   const nb=e.target.closest('nav button');
   if(nb){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b===nb));
-    const lc=nb.dataset.lc;['guide','tiles','waitbox'].forEach(id=>$('#'+id).hidden=!!lc);$('#tab-lc').hidden=!lc;
-    ['src','make','view','post','voice','lmap'].forEach(t=>$('#tab-'+t).hidden=!!lc||t!==nb.dataset.tab);
+    const lc=nb.dataset.lc,col=nb.dataset.col;['guide','tiles','waitbox'].forEach(id=>$('#'+id).hidden=!!(lc||col));$('#tab-lc').hidden=!lc;
+    $('#tab-collect').hidden=!col;
+    ['src','make','view','post','voice','lmap'].forEach(t=>$('#tab-'+t).hidden=!!(lc||col)||t!==nb.dataset.tab);
     if(lc){showLecture(lc);return}
+    if(col){colPart=+col;$('#colbody').innerHTML='<p class="muted">불러오는 중…</p>';loadCollect();return}
     const np=+(nb.dataset.part||2);if(np!==part){part=np;sel.clear();viewId=null;load()}
     if(nb.dataset.tab==='lmap'){$('#tiles').hidden=true;loadMap()}
     if(nb.dataset.tab==='voice')loadVoice();return}
@@ -324,6 +352,9 @@ document.addEventListener('click',async e=>{
       if(bad.length){alert(`음성 체크를 마치지 않은 회차는 올리지 않습니다:\n${bad.map(k=>k.replace('|',' ')).join('\n')}`);items=items.filter(k=>!bad.includes(k));bad.forEach(k=>sel.delete(k))}
       if(!items.length){load();return}}
     try{await api('/api/run',{method:'POST',body:JSON.stringify({items,stages:sb.dataset.st.split(','),subject,force:$('#force').checked,visibility:$('#vis').value,account:$('#acc').value})});load()}catch(x){alert(x.message)}return}
+  if(e.target.id==='colgo'){if(colPart===2&&!confirm('모으기를 시작할까요? 해설편이 없거나 오래됐으면 xam-local3로 먼저 굽습니다(07/_textbook 의 해설편·교재 한 권을 새로 만듦).'))return;
+    try{await api(`/api/collect/${colPart}`,{method:'POST',body:JSON.stringify({subject})});load()}catch(x){alert(x.message)}return}
+  if(e.target.id==='colfolder'){try{await api(`/api/collect/${colPart}/folder`,{method:'POST',body:JSON.stringify({subject})})}catch(x){alert(x.message)}return}
   if(e.target.id==='hwpxgo'){try{await api('/api/mock/hwpx',{method:'POST',body:JSON.stringify({subject})});load()}catch(x){alert(x.message)}return}
   if(e.target.id==='dlfolder'){try{await api('/api/mock/folder',{method:'POST',body:JSON.stringify({subject})})}catch(x){alert(x.message)}return}
   if(e.target.id==='dlgo'){location.href=`/api/mock/bundle?ids=${encodeURIComponent([...dsel].sort().join(','))}&pdf=${$('#dlpdf').checked?1:0}`;return}

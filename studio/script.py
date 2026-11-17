@@ -162,9 +162,9 @@ def assemble(job: Job, items: Dict[int, Dict[str, Any]]) -> Dict[str, Any]:
 
 def run(job: Job, force: bool = False, only: Optional[List[int]] = None) -> Dict[str, Any]:
     if job.setting("kind") == "mock":
-        force = False      # 모의고사 대본의 원본은 xam-local2(07/mNN/script) — 고치려면 거기서 다시 굽고 s0 --force
+        force = False      # 모의고사 대본의 원본은 xam-local3(07/mNN/script) — 고치려면 거기서 다시 굽고 s0 --force
     questions = read_json(job.book / "questions.json", [])
-    # 모의고사는 xam-local2 가 대본(script/qNN.json)을 이미 만들어 둔다 — 모두 있으면 Claude 없이 조립만
+    # 모의고사는 xam-local3 가 대본(script/qNN.json)을 이미 만들어 둔다 — 모두 있으면 Claude 없이 조립만
     have_all = all((job.scripts / f"q{q['no']:02d}.json").exists() for q in questions)
     if not (have_all and not force) and not claude.available():
         raise RuntimeError("claude CLI 가 없습니다 — Claude Code 설치 후 `claude auth login`")

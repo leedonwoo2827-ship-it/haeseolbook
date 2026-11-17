@@ -3,7 +3,7 @@
 종류(job.json "kind"):
   g9    국가직 9급 기출 — id `2025-g9-computer`, _assets/index.json 의 원문·인사혁신처 정답 PDF
   mock  자사 모의고사 — id `<code>-<mNN>-p<과목>` (예: com2-m06-p1), _assets/mocks.json 의 시리즈.
-        xam-local2 가 굽는 `<book>/07/<mNN>/` (1단 46배판 exam.pdf · answers.json · script/qNN.json) 을 쓴다.
+        xam-local3 가 굽는 `<book>/07/<mNN>/` (1단 46배판 exam.pdf · answers.json · script/qNN.json) 을 쓴다.
         한 회차 40문항을 과목(20문항)마다 영상 한 편·이북 한 권으로 나눈다 — 유튜브 한 편 20~25분.
 
 studio/jobs/<id>/
@@ -175,7 +175,7 @@ def mock_parts(book: Path, rc: str, split: str = "subject", subject_all: str = "
     d = Path(book) / "07" / rc / "script"
     items = sorted(d.glob("q??.json"))
     if not items:
-        raise FileNotFoundError(f"{d} 에 대본이 없습니다 — xam-local2 「이북 시험지」로 {rc} 를 먼저 구우세요")
+        raise FileNotFoundError(f"{d} 에 대본이 없습니다 — xam-local3 「이북 시험지」로 {rc} 를 먼저 구우세요")
     parts: List[Dict[str, Any]] = []
     for f in items:
         q = read_json(f)
@@ -289,7 +289,7 @@ def create_lecture(code: str, lid: str, voice: str = "F1", model: str = "opus") 
 
 
 def record_mock_video(job: Job, url: str) -> Optional[Path]:
-    """모의고사 영상 주소 → <교재>/07/_textbook/videos.json {"m01-p1": url} — xam-local2 정답·해설편이 QR 로 찍는다"""
+    """모의고사 영상 주소 → <교재>/07/_textbook/videos.json {"m01-p1": url} — xam-local3 정답·해설편이 QR 로 찍는다"""
     if job.setting("kind") != "mock" or not url or job.setting("unit") == "lecture":
         return None
     src = Path(job.meta.get("paperFull") or job.meta["paper"])      # <교재>/07/<mNN>/exam.pdf
