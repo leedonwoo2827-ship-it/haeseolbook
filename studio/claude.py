@@ -80,6 +80,7 @@ def ask(prompt: str, *, model: str = "opus", cwd: Optional[Path] = None, allow_r
     import os
     env = dict(os.environ, ANTHROPIC_API_KEY="", ANTHROPIC_AUTH_TOKEN="", ANTHROPIC_BASE_URL="")  # 구독(로그인)으로만
     waited_since = time.time()
+    empty = 0
     while True:
         try:
             proc = subprocess.run(cmd, input=prompt, capture_output=True, cwd=str(cwd) if cwd else None, env=env,
@@ -101,6 +102,10 @@ def ask(prompt: str, *, model: str = "opus", cwd: Optional[Path] = None, allow_r
                 on_wait(None)
             return result
         text = result + "\n" + raw
+        if not is_error and not result.strip() and empty < 2:   # 정상 종료인데 빈 답(생각만 하고 끝남) — 다시 묻는다
+            empty += 1
+            log("  · Claude 가 빈 답을 돌려줌 — 다시 묻습니다")
+            continue
         if LIMIT_RE.search(text):
             if time.time() - waited_since > MAX_WAIT_HOURS * 3600:
                 raise ClaudeError(f"Claude 한도가 {MAX_WAIT_HOURS}시간 넘게 풀리지 않았습니다")
