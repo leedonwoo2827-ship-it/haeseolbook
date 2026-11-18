@@ -155,6 +155,7 @@ def mock_series() -> List[Dict[str, Any]]:
     subject_all  split=round 일 때 과목 칸에 쓰는 이름 (기본 "전 과목")
     per_part  과목 안에서 N문항씩 한 편 (SQLD 10 = 예전 04-2 처럼 5편)
     pan_tall  세로로 긴 문항(표·SQL)을 크게 키워 판서 따라 위아래로 (frames.py · boards.tall_view)
+    pan_shrink  pan_tall 기준 — 기본 0.6(많이 줄어드는 문항만), 1.0 이면 모든 문항 폭 맞춤 같은 크기(컴활 1급)
     no_dest   교재/이북 구분이 없는 시리즈(SQLD) — 화면·제목에 「이북」「교재」를 쓰지 않는다
     voice_ai  s3 합성 전에 모든 줄을 AI 발음 교정(voicecheck.ai_fix_all) — 음성 체크는 듣고 확인만
     """
@@ -244,7 +245,7 @@ def create_mock(code: str, rc: str, part: int, voice: Optional[str] = None, mode
             "dest": "textbook" if n in (series.get("textbook") or []) else "ebook",
             "visibility": "public" if n in (series.get("public") or []) else "unlisted",
             "voice": voice or _default_voice(), "speed": 1.0, "model": model,
-            **({"pan_tall": True} if series.get("pan_tall") else {}),
+            **({"pan_tall": True} if series.get("pan_tall") else {}), **({"pan_shrink": series["pan_shrink"]} if series.get("pan_shrink") else {}),
             **({"no_dest": True} if series.get("no_dest") else {}),
             **({"voice_ai": True} if series.get("voice_ai") else {}),
         })
@@ -287,7 +288,7 @@ def create_lecture(code: str, lid: str, voice: Optional[str] = None, model: str 
         "paper": str(d / "paper.pdf"), "answers": "", "scriptSrc": "",
         "dest": "ebook", "visibility": "unlisted",
         "voice": voice or _default_voice(), "speed": 1.0, "model": model,
-        **({"pan_tall": True} if series.get("pan_tall") else {}),
+        **({"pan_tall": True} if series.get("pan_tall") else {}), **({"pan_shrink": series["pan_shrink"]} if series.get("pan_shrink") else {}),
         "no_dest": True,
         **({"voice_ai": True} if series.get("voice_ai") else {}),
     })

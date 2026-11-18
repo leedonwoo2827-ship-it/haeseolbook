@@ -111,7 +111,9 @@ def tall_view(job: Job, no: int) -> Optional[Dict[str, Any]]:
     bw, bh = CARD[2] - CARD[0] - 2 * PAD, CARD[3] - CARD[1] - 2 * PAD
     s_w = min(bw / crop_img.width, 1.0)
     s_fit = min(s_w, bh / crop_img.height)
-    if s_fit >= PAN_SHRINK * s_w:
+    # pan_shrink = 1.0 이면 카드에 들어가려고 조금이라도 줄어드는 문항은 모두 폭 맞춤 그대로 두고 위아래로 —
+    # 문항마다 글자 크기가 달라지지 않게(컴활 1급, 사용자 2026-11-19 「작았다 커졌다하면 대충 만든 것 같다」)
+    if s_fit >= float(job.setting("pan_shrink", PAN_SHRINK)) * s_w - 1e-9:
         return None
     s = min(s_w, PAN_SCREENS * bh / crop_img.height)
     im = crop_img.resize((max(1, int(crop_img.width * s)), max(1, int(crop_img.height * s))), Image.LANCZOS)
