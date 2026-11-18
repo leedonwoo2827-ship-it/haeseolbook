@@ -30,6 +30,7 @@ AI_PROMPT = """아래는 시험 해설 영상 내레이션(한국어 TTS)의 발
 틀린 부분을 수정해서 각 줄의 전문을 알려줘.
 - 영문 · 약어 · 코드 이름은 실제로 읽는 소리를 한글로 (사전에 정해진 건 따르고, 단어는 단어로: super → 슈퍼, this → 디스, static → 스태틱, CPU → 씨피유). 밑줄(_)은 읽지 않는다.
 - 숫자는 한국어로 자연스럽게 (2024년 → 이천이십사 년, 제3정규형 → 제삼 정규형, 3개 → 세 개, 0.5 → 영 점 오).
+- 회차·번호의 앞자리 0 은 읽지 않는다: 01회 → 일회, 05번 → 오번 (「영일 회」 금지). [발음] 에 이미 「일회」로 되어 있으면 그대로 둔다.
 - 수식은 말로 읽는 순서대로: 2^n → 이의 엔 제곱, x² → 엑스 제곱, 2^(n-1) → 이의 엔 마이너스 일 제곱, log₂n → 로그 이 엔, n! → 엔 팩토리얼, a/b → 비 분의 에이, √n → 루트 엔, O(n log n) → 빅오 엔 로그 엔, a mod b → 에이 모드 비, a % b → 에이 나머지 비(퍼센트일 땐 퍼센트).
 - 기호: = → 는(같다), ≤ → 이하, ≥ → 이상, ≠ → 같지 않다, < > → 보다 작다·크다, + − × ÷ → 더하기 빼기 곱하기 나누기, ++ → 플러스 플러스, == → 같다, && → 앤드, || → 오어.
 - 키 조합의 + 는 더하기로 읽지 않는다: ⊞+D → 윈도우 키와 디, ⊞+Shift+S → 윈도우 키와 시프트 에스, Ctrl+C → 컨트롤 씨 (「윈도우 단축키」라고 하지 않는다).
@@ -51,6 +52,14 @@ LEFTOVER = re.compile(r"[A-Za-z0-9²³√∑Σ≤≥≠×÷±∞π^%=<>+*/()（�
 
 def _norm(t: str) -> str:
     return re.sub(r"\s+", " ", t or "").strip()
+
+
+_LEAD_ZERO = re.compile(r"영\s*([일이삼사오육칠팔구])\s*(회|번|강)")
+
+
+def fix_lead_zero(t: str) -> str:
+    """AI 가 01회를 「영일 회」로 바꾼 것을 「일회」로 되돌린다(규칙 numbers.py 와 같게, 띄우지 않음)(2026-11-19 컴활 1급 시작·끝 인사)"""
+    return _LEAD_ZERO.sub(lambda m: m.group(1) + m.group(2), t or "")
 
 
 def _ctx(job: Job) -> Dict[str, Any]:
@@ -276,7 +285,7 @@ def ai_fix_all(job: Job, workers: int = 4, redo: bool = False) -> int:
         f = fx.get(lid) or {}
         if f.get("tts") and f.get("src") == it["say"] and f.get("by") != "ai":
             continue
-        tts = _norm(tts)
+        tts = _norm(fix_lead_zero(tts))
         if tts != engine.spoken(it["say"], c["subject"]):
             fx[lid] = {"tts": tts, "src": it["say"], "by": "ai"}
             n += 1
