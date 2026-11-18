@@ -14,7 +14,7 @@ if not exist ".venv\Scripts\python.exe" (
 ".venv\Scripts\python" -m pip install -q --upgrade pip
 ".venv\Scripts\python" -m pip install -q -r studio\requirements.txt || (echo pip install failed & pause & exit /b 1)
 
-echo [2/6] SuperTonic3 voice models (about 400MB, first time only)
+echo [2/6] TTS check (OmniVoice by default - see _assets\tts.json; SuperTonic3 models only when engine=supertonic3)
 ".venv\Scripts\python" -m studio tts-setup || (echo model download failed & pause & exit /b 1)
 
 echo [3/6] Portable PHP 8.3 (tools\php)

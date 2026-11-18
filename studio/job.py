@@ -29,8 +29,14 @@ from . import JOBS, ROOT
 
 _lock = threading.Lock()
 
-SUBJECT_IDS = {"컴퓨터일반": "computer", "컴퓨터 일반": "computer", "스프레드시트 일반": "spreadsheet", "정보보호론": "infosec", "국어": "korean", "영어": "english", "한국사": "history",
+SUBJECT_IDS = {"컴퓨터일반": "computer", "컴퓨터 일반": "computer", "스프레드시트 일반": "spreadsheet", "데이터베이스 일반": "database", "정보보호론": "infosec", "국어": "korean", "영어": "english", "한국사": "history",
                "데이터 모델링의 이해": "sqld", "SQL 기본 및 활용": "sqld"}
+
+
+def _default_voice() -> str:
+    """새 작업 목소리 — 엔진이 OmniVoice 면 W1(레퍼런스 wav 하나), 슈퍼토닉이면 F1"""
+    from .tts.engine import default_voice
+    return default_voice()
 
 
 def read_json(p: Path, default: Any = None) -> Any:
@@ -113,7 +119,7 @@ class Job:
 
 
 def create(year: int, subject: str = "컴퓨터일반", exam: str = "국가직 9급", booklet: Optional[str] = None,
-           voice: str = "F1", model: str = "opus") -> Job:
+           voice: Optional[str] = None, model: str = "opus") -> Job:
     """_assets/index.json 에서 연도·과목의 문제지와 정답표를 찾아 작업을 만든다(있으면 그대로 둔다)."""
     index = read_json(ROOT / "_assets" / "index.json", [])
     entry = next((e for e in index if e["year"] == year and e["subject"] == subject), None)
@@ -131,7 +137,7 @@ def create(year: int, subject: str = "컴퓨터일반", exam: str = "국가직 9
             "examDate": entry.get("examDate"),
             "title": f"{year} {exam} {subject} 기출 해설",
             "paper": f"_assets/{paper['file']}", "answers": f"_assets/{entry['answers']['file']}",
-            "voice": voice, "speed": 1.0, "model": model,
+            "voice": voice or _default_voice(), "speed": 1.0, "model": model,
         })
     return Job(job_id)
 
@@ -209,7 +215,7 @@ def mock_title(series: Dict[str, Any], rl: str, pinfo: Dict[str, Any]) -> str:
     return f"{head} {pinfo['subject']} 해설"
 
 
-def create_mock(code: str, rc: str, part: int, voice: str = "F1", model: str = "opus") -> Job:
+def create_mock(code: str, rc: str, part: int, voice: Optional[str] = None, model: str = "opus") -> Job:
     series = next((e for e in mock_series() if e["code"] == code), None)
     if not series:
         raise ValueError(f"_assets/mocks.json 에 {code} 시리즈가 없습니다 (python -m studio new-mock …)")
@@ -237,7 +243,7 @@ def create_mock(code: str, rc: str, part: int, voice: str = "F1", model: str = "
             "paper": str(src / "exam.pdf"), "answers": str(src / "answers.json"), "scriptSrc": str(src / "script"),
             "dest": "textbook" if n in (series.get("textbook") or []) else "ebook",
             "visibility": "public" if n in (series.get("public") or []) else "unlisted",
-            "voice": voice, "speed": 1.0, "model": model,
+            "voice": voice or _default_voice(), "speed": 1.0, "model": model,
             **({"pan_tall": True} if series.get("pan_tall") else {}),
             **({"no_dest": True} if series.get("no_dest") else {}),
             **({"voice_ai": True} if series.get("voice_ai") else {}),
@@ -249,7 +255,7 @@ def lecture_title(series: Dict[str, Any], L: Dict[str, Any]) -> str:
     return f"{series.get('short') or series['exam']} 필기 출제예상문제 {int(L['no'])}강 해설"   # 강 제목은 안 보이게(profile._lecture)
 
 
-def create_lecture(code: str, lid: str, voice: str = "F1", model: str = "opus") -> Job:
+def create_lecture(code: str, lid: str, voice: Optional[str] = None, model: str = "opus") -> Job:
     """3부 강 행 — 11~20회 문항 중 1부 강의 L01~ 에 배정된 것(_assets/lecture_map/<code>.json)을 한 편으로.
     문항은 강 안에서 1번부터 새로 센다(range [1, N]) — 원래 회차·번호는 questions[] 와 장 제목에 남는다.
     시험지는 s0 이 원래 회차들의 쪽을 이어 붙여 만든다(prepare._run_lecture)."""
@@ -280,7 +286,7 @@ def create_lecture(code: str, lid: str, voice: str = "F1", model: str = "opus") 
         "book_dir": series["book"], "booklet": "", "title": lecture_title(series, L),
         "paper": str(d / "paper.pdf"), "answers": "", "scriptSrc": "",
         "dest": "ebook", "visibility": "unlisted",
-        "voice": voice, "speed": 1.0, "model": model,
+        "voice": voice or _default_voice(), "speed": 1.0, "model": model,
         **({"pan_tall": True} if series.get("pan_tall") else {}),
         "no_dest": True,
         **({"voice_ai": True} if series.get("voice_ai") else {}),

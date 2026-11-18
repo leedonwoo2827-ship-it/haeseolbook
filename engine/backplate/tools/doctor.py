@@ -169,6 +169,33 @@ def check_assets() -> None:
             "(약 396MB · 없으면 음성만 빠집니다)")
 
 
+def check_omnivoice() -> None:
+    """tts.engine 이 omnivoice 일 때만 본다 — 그 venv 의 torch 가 GPU 를 잡는지."""
+    from core import config
+    t = config.load().get("tts") or {}
+    if t.get("engine") != "omnivoice":
+        return
+    py, ref = t.get("python"), t.get("ref_audio")
+    row(OK if ref and Path(ref).is_file() else BAD, "OmniVoice 목소리",
+        Path(ref).name if ref else "", "" if ref and Path(ref).is_file()
+        else "tts.ref_audio 에 3~10초 wav 경로")
+    if not (py and Path(py).is_file()):
+        row(BAD, "OmniVoice venv", "", "setup-omnivoice.bat <레퍼런스.wav>")
+        return
+    probe = ("import torch,omnivoice;assert torch.cuda.is_available();"
+             "print(torch.__version__, torch.cuda.get_device_name(0).replace(' ','_'))")
+    try:
+        r = subprocess.run([py, "-c", probe], capture_output=True, text=True,
+                           timeout=180, encoding="utf-8", errors="replace")
+        if r.returncode == 0:
+            tv, gpu = (r.stdout or "").split()[-2:]
+            row(OK, "OmniVoice", f"torch {tv} · {gpu.replace('_', ' ')}")
+        else:
+            row(BAD, "OmniVoice", "", "CUDA torch/omnivoice 확인 — setup-omnivoice.bat")
+    except Exception:  # noqa: BLE001
+        row(WARN, "OmniVoice", "", "OmniVoice venv 를 확인하지 못했습니다")
+
+
 def check_logins() -> None:
     # Codex — 파일이 있는지가 아니라 **살아 있는지**를 본다. 만료된 토큰이
     # 파일로는 멀쩡해 보인다(2026-09-18 에 실제로 겪었다: token_revoked).
@@ -218,6 +245,7 @@ def main() -> int:
     check_python_packages()
     check_node_packages()
     check_assets()
+    check_omnivoice()
     check_logins()
     check_workspace()
 

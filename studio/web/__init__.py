@@ -215,7 +215,7 @@ def tools() -> Dict[str, Any]:
     from .. import accounts
     prof = ROOT / "profiles" / accounts.current()
     return {
-        "claude": claude.available(), "supertonic": not engine.missing(), "ffmpeg": bool(shutil.which("ffmpeg")),
+        "claude": claude.available(), "supertonic": not engine.missing(), "tts_name": "OmniVoice" if engine.engine_name() == "omnivoice" else "SuperTonic3", "ffmpeg": bool(shutil.which("ffmpeg")),
         "php": bool(php_exe()), "chrome_profile": prof.exists() and any(prof.iterdir()),
     }
 
@@ -241,6 +241,7 @@ def create_app():
         lecture_job = series.get("lecture_job")
         return {"subjects": subjects, "rows": rs, "running": running(), "tools": tools(), "lecture_job": lecture_job,
                 "part": part, "code": series.get("code"), "lecture_rounds": series.get("lecture_rounds") or [],
+                "final_rounds": series.get("final_rounds") or [],
                 "totals": {
                     "rounds": len(rs), "script": sum(1 for r in rs if r.get("script") == (r.get("qTotal") or 20)),
                     "marks": sum(1 for r in rs if r.get("marksDone")),

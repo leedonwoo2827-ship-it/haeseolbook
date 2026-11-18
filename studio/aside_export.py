@@ -18,6 +18,7 @@ from typing import Any, Dict, Optional
 
 from .job import Job, read_json, write_json
 from .log import log
+from .tts import engine
 
 DEFAULT_DIR = Path(os.environ.get("HSB_ASIDE_DIR", r"D:\00work\261011-롱폼 세계사"))
 
@@ -54,7 +55,7 @@ def export(job: Job, aside_dir: Optional[Path] = None) -> Path:
         write_json(series / "job.json", {
             "title": f"{job.meta['exam']} {job.meta['subject']} 기출 해설",
             "long": {"plan_confirmed": True, "style": "textbook"},
-            "tts": {"voice": job.setting("voice", "F1"), "speed": 1.0},
+            "tts": {"voice": job.setting("voice", engine.default_voice()), "speed": 1.0},
             "youtube": {"playlist": f"{job.meta['exam']} {job.meta['subject']} 기출 해설"},
         })
     s = sid(job)

@@ -40,7 +40,29 @@ def _engine_python() -> str:
     return str(VENV_PY) if VENV_PY.is_file() else sys.executable
 
 
+def wire_omnivoice(py: str, ref: str, ref_text: str = "") -> None:
+    """OmniVoice(CUDA) 를 잇는다. 슈퍼토닉 칸(voicewright_dir·assets_dir)은
+    그대로 둔다 — `engine` 만 바꾸면 언제든 CPU 엔진으로 되돌릴 수 있게."""
+    bad = [n for n, p in (("python", py), ("ref_audio", ref)) if not Path(p).is_file()]
+    if bad:
+        raise SystemExit("[tts] OmniVoice 연결 실패 — 파일이 없습니다: " + ", ".join(bad))
+    config.save({"tts": {"engine": "omnivoice", "python": str(Path(py).resolve()),
+                         "ref_audio": str(Path(ref).resolve()), "ref_text": ref_text,
+                         "num_step": 32, "timeout_ms": 1800000}})
+    print(f"[tts] OmniVoice 연결됨 · python={py}")
+    print(f"[tts] 목소리={ref}")
+
+
 def main() -> None:
+    # python tools/wire_tts.py omnivoice <python.exe> <ref.wav> ["레퍼런스 대사"]
+    if len(sys.argv) >= 4 and sys.argv[1] == "omnivoice":
+        wire_omnivoice(sys.argv[2], sys.argv[3], sys.argv[4] if len(sys.argv) > 4 else "")
+        return
+    # ★ setup.bat 을 다시 돌려도 이미 이은 OmniVoice 를 슈퍼토닉으로 덮지 않는다.
+    cur = config.load().get("tts") or {}
+    if cur.get("engine") == "omnivoice" and Path(str(cur.get("python"))).is_file():
+        print(f"[tts] OmniVoice 가 연결돼 있어 그대로 둡니다 · 목소리={cur.get('ref_audio')}")
+        return
     missing = []
     if not ENGINE.is_file():
         missing.append("엔진 코드(tts/)")

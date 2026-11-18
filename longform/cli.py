@@ -91,6 +91,13 @@ def make(job, only: Optional[List[str]], a) -> int:
             if not a.sections:
                 step = "잇기"
                 s4_stitch.run(job, [lid], a.force)
+                if job.get("review.auto_drive", True):     # 강마다 검수 html·영상을 드라이브로(집 노트북에서 검수 — 2·3부와 같게)
+                    try:
+                        from longform import review
+                        r = review.to_drive(job, lid)
+                        log(f"{lid} 검수 파일 → 드라이브 {r['dir']}")
+                    except Exception as e:  # noqa: BLE001 — 드라이브가 없어도 제작은 계속
+                        log(f"{lid} 검수 파일 드라이브 복사 건너뜀: {e}")
             result[lid] = ("성공", round((time.time() - t) / 60, 1), "")
             statement("made", f"{job.name}/{lid}", {"min": result[lid][1]})
         except BaseException as e:            # SystemExit 포함 — 한 강의 실패가 밤샘 작업 전체를 멈추지 않게

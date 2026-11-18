@@ -67,3 +67,4 @@ node_modules/
 .venv-app/
 static/fonts/*
 !static/fonts/suit/
+.venv-omnivoice/

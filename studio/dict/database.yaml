@@ -1,0 +1,64 @@
+# 데이터베이스 일반(컴활 1급) 과목 발음 사전 — 공통 사전(studio/pronunciation.yaml)보다 이긴다. 표기: 소리 (합성 직전에만 바뀌고 자막은 그대로)
+# 2026-11-18 처음 만듦(액세스·SQL 낱말 위주, 대략만 — 세부 발음은 사용자가 음성 체크에서 고친다)
+rules:
+  Access: 액세스
+  SQL: 에스큐엘
+  DBMS: 디비엠에스
+  DB: 디비
+  DDL: 디디엘
+  DML: 디엠엘
+  DCL: 디씨엘
+  ERD: 이알디
+  E-R: 이알
+  SELECT: 셀렉트
+  FROM: 프롬
+  WHERE: 웨어
+  ORDER BY: 오더 바이
+  GROUP BY: 그룹 바이
+  HAVING: 해빙
+  DISTINCT: 디스팅트
+  ASC: 에이에스씨
+  DESC: 디이에스씨
+  INSERT: 인서트
+  INTO: 인투
+  VALUES: 밸류스
+  UPDATE: 업데이트
+  SET: 셋
+  DELETE: 딜리트
+  CREATE: 크리에이트
+  ALTER: 얼터
+  DROP: 드롭
+  TABLE: 테이블
+  VIEW: 뷰
+  INDEX: 인덱스
+  GRANT: 그랜트
+  REVOKE: 리보크
+  COMMIT: 커밋
+  ROLLBACK: 롤백
+  JOIN: 조인
+  INNER JOIN: 이너 조인
+  LEFT JOIN: 레프트 조인
+  RIGHT JOIN: 라이트 조인
+  LIKE: 라이크
+  BETWEEN: 비트윈
+  "NULL": 널
+  "IS NULL": 이즈 널
+  "Is Null": 이즈 널
+  "NOT NULL": 낫 널
+  COUNT: 카운트
+  SUM: 썸
+  AVG: 애버리지
+  MAX: 맥스
+  MIN: 민
+  DLookup: 디룩업
+  DCount: 디카운트
+  DSum: 디썸
+  DAvg: 디애버리지
+  DMax: 디맥스
+  DMin: 디민
+  DoCmd: 두커맨드
+  OpenForm: 오픈폼
+  OpenReport: 오픈리포트
+  IIf: 아이아이에프
+  Format: 포맷
+  VBA: 브이비에이

@@ -27,7 +27,8 @@ from pipeline.registry import (STAGES, cache_path, cached_data, narration_of,
                                read_cache, write_cache)
 
 APP = Path(__file__).resolve().parent.parent
-BRIDGE = APP / "scripts" / "tts_bridge.py"
+BRIDGE = APP / "scripts" / "tts_bridge.py"                    # 슈퍼토닉3 (CPU)
+OMNI_BRIDGE = APP / "scripts" / "tts_bridge_omnivoice.py"     # OmniVoice (CUDA)
 AUDIO_EXT = (".wav", ".mp3", ".m4a", ".opus", ".flac")
 
 
@@ -35,8 +36,19 @@ def find_engine(cfg: Dict[str, Any]) -> Optional[Dict[str, str]]:
     """설정에 적힌 것만 쓴다. **찾아 헤매지 않는다** — 남의 폴더를 뒤지면
     엉뚱한 설치본을 물고 조용히 이상한 목소리가 나온다."""
     t = cfg.get("tts") or {}
-    if (t.get("engine") or "none") == "none":
+    name = t.get("engine") or "none"
+    if name == "none":
         return None
+    if name == "omnivoice":
+        # ★ OmniVoice 는 torch+CUDA 별도 venv 하나와 레퍼런스 wav 만 있으면 된다.
+        #   레포 안 엔진 코드·assets 가중치를 보지 않는다(모델은 HF 캐시에서).
+        py, ref = t.get("python"), t.get("ref_audio")
+        if not (py and Path(py).is_file() and ref and Path(ref).is_file()):
+            return None
+        return {"engine": name, "bridge": str(OMNI_BRIDGE), "python": py,
+                "ref_audio": ref, "ref_text": t.get("ref_text") or "",
+                "num_step": int(t.get("num_step") or 32),
+                "timeout_ms": int(t.get("timeout_ms") or 1800000)}
     py, vw, assets = t.get("python"), t.get("voicewright_dir"), t.get("assets_dir")
     if not (py and vw):
         return None
@@ -52,8 +64,28 @@ def find_engine(cfg: Dict[str, Any]) -> Optional[Dict[str, str]]:
     #   **`wire_tts.py` 가 보는 것과 같은 것을 본다** — 둘이 갈라지면 또 난다.
     if not (Path(vw) / "tts" / "engine.py").is_file():
         return None
-    return {"python": py, "voicewright_dir": vw, "assets_dir": assets or "",
+    return {"engine": name, "bridge": str(BRIDGE), "python": py,
+            "voicewright_dir": vw, "assets_dir": assets or "",
             "timeout_ms": int(t.get("timeout_ms") or 300000)}
+
+
+def _job_spec(eng: Dict[str, Any], nar: Dict[str, Any], out_dir: Path,
+              items: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """브리지에 넘길 job — 전체 합성과 한 장 다시 합성이 **같은 것**을 쓴다."""
+    spec = {"out_dir": str(out_dir), "speed": nar.get("speed", 1.0), "items": items}
+    if eng["engine"] == "omnivoice":
+        spec.update(ref_audio=eng["ref_audio"], ref_text=eng["ref_text"],
+                    num_step=eng["num_step"])
+    else:
+        spec.update(voicewright_dir=eng["voicewright_dir"], assets_dir=eng["assets_dir"],
+                    voice=nar.get("voice", "F2"), total_step=nar.get("total_step", 8))
+    return spec
+
+
+def _voice_label(eng: Dict[str, Any], nar: Dict[str, Any]) -> str:
+    if eng["engine"] == "omnivoice":
+        return f"OmniVoice · {Path(eng['ref_audio']).name}"
+    return f"{nar.get('voice')}"
 
 
 def probe_sec(path: Path) -> Optional[float]:
@@ -106,7 +138,7 @@ def _bridge(job_spec: Dict[str, Any], work: Path, eng: Dict[str, str]) -> Dict[s
     ws.write_json(job_p, job_spec)
     if res_p.exists():
         res_p.unlink()
-    cmd = [eng["python"], str(BRIDGE), str(job_p), str(res_p)]
+    cmd = [eng["python"], eng["bridge"], str(job_p), str(res_p)]
     proc = subprocess.run(cmd, cwd=str(APP), capture_output=True, text=True,
                           encoding="utf-8", errors="replace",
                           timeout=eng["timeout_ms"] / 1000)
@@ -146,14 +178,8 @@ def synth_one(pid: int, slug: str, no: int) -> Dict[str, Any]:
     tts_dir = ws.sub_dir(pid, slug, "audio", "tts")
     step_name = ws.STEPS["audio"][0]
 
-    res = _bridge({
-        "out_dir": str(tts_dir),
-        "voicewright_dir": eng["voicewright_dir"],
-        "assets_dir": eng["assets_dir"],
-        "voice": nar.get("voice", "F2"), "speed": nar.get("speed", 1.0),
-        "total_step": nar.get("total_step", 8),
-        "items": [{"no": int(no), "text": text}],
-    }, ws.cache_dir(pid, slug), eng)
+    res = _bridge(_job_spec(eng, nar, tts_dir, [{"no": int(no), "text": text}]),
+                  ws.cache_dir(pid, slug), eng)
 
     if res.get("error"):
         raise RuntimeError("엔진 오류: " + str(res["error"])[-300:])
@@ -234,21 +260,14 @@ def run(job, pid: int, slug: str, project: Dict[str, Any], *, force: bool = Fals
     nar = dict(cfg["narration"], **(project.get("narration") or {}))
     work = ws.cache_dir(pid, slug)
     job_p, res_p = work / "_tts_job.json", work / "_tts_result.json"
-    ws.write_json(job_p, {
-        "out_dir": str(tts_dir),
-        "voicewright_dir": eng["voicewright_dir"],
-        "assets_dir": eng["assets_dir"],
-        "voice": nar.get("voice", "F2"), "speed": nar.get("speed", 1.0),
-        "total_step": nar.get("total_step", 8),
-        "items": todo,
-    })
+    ws.write_json(job_p, _job_spec(eng, nar, tts_dir, todo))
     if res_p.exists():
         res_p.unlink()
 
-    job.add_log(f"{len(todo)}장 합성 — 보이스 {nar.get('voice')} · {eng['python']}")
+    job.add_log(f"{len(todo)}장 합성 — 보이스 {_voice_label(eng, nar)} · {eng['python']}")
     job.progress(0, len(todo), "음성 합성")
 
-    cmd = [eng["python"], str(BRIDGE), str(job_p), str(res_p)]
+    cmd = [eng["python"], eng["bridge"], str(job_p), str(res_p)]
     try:
         proc = subprocess.Popen(cmd, cwd=str(APP), stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT, text=True,
@@ -258,7 +277,8 @@ def run(job, pid: int, slug: str, project: Dict[str, Any], *, force: bool = Fals
             line = line.rstrip()
             if not line:
                 continue
-            if line.startswith("["):
+            # `[5] 4.1s 005.wav` 만 센다 — OmniVoice 쪽 `[transformers] …` 로그도 `[` 로 시작한다
+            if line.startswith("[") and line[1:2].isdigit():
                 done += 1
                 job.progress(done, len(todo), f"{done}/{len(todo)}")
             job.add_log("  " + line[:160])
@@ -316,7 +336,7 @@ def run(job, pid: int, slug: str, project: Dict[str, Any], *, force: bool = Fals
     return write_cache(pid, slug, "s10-tts",
                        input_hash=stage.input_hash(pid, slug,
                                                    ws.load_project(pid, slug)),
-                       data={"slides": out, "engine": "voicewright",
+                       data={"slides": out, "engine": eng["engine"],
                              "sample_rate": res.get("sample_rate"),
                              "total_sec": total},
                        code_version=stage.code_version,

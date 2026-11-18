@@ -509,7 +509,7 @@ async def pick_preview(request: Request) -> Dict[str, Any]:
 
 @app.get("/api/tools")
 def tools(job: str = "") -> Dict[str, Any]:
-    """머리줄 상태 알약 — Claude 설치·로그인·계정, 음성 엔진(SuperTonic3) 준비."""
+    """머리줄 상태 알약 — Claude 설치·로그인·계정, 음성 엔진(engine/backplate 설정의 tts.engine — 기본 OmniVoice) 준비."""
     from longform import accounts
     try:
         c = (accounts.status(_job(job) if job else None).get("claude")) or {}
@@ -522,9 +522,22 @@ def tools(job: str = "") -> Dict[str, Any]:
             email = (json.loads(cj.read_text(encoding="utf-8")).get("oauthAccount") or {}).get("emailAddress") or ""
     except Exception:  # noqa: BLE001
         pass
-    onnx = REPO / "engine" / "backplate" / "assets" / "onnx"
     return {"claude": {"installed": bool(c.get("path")), "logged_in": bool(c.get("logged_in")), "email": email},
-            "tts": onnx.is_dir() and any(onnx.glob("*.onnx"))}
+            **_tts_state()}
+
+
+def _tts_state() -> Dict[str, Any]:
+    """백플레이트 설정(showcase.config.local.json)의 tts — omnivoice 면 python·ref_audio, supertonic3 면 onnx"""
+    bp = REPO / "engine" / "backplate"
+    try:
+        t = (json.loads((bp / "showcase.config.local.json").read_text(encoding="utf-8")).get("tts") or {})
+    except Exception:  # noqa: BLE001
+        t = {}
+    if (t.get("engine") or "") == "omnivoice":
+        ok = all(t.get(k) and Path(t[k]).is_file() for k in ("python", "ref_audio"))
+        return {"tts": ok, "tts_name": "OmniVoice"}
+    onnx = bp / "assets" / "onnx"
+    return {"tts": onnx.is_dir() and any(onnx.glob("*.onnx")), "tts_name": "SuperTonic3"}
 
 
 # ── 계정·로그인(이 PC 전용 — 토큰은 profiles/ 에, 깃 제외) ───────────────
@@ -685,6 +698,55 @@ async def voice_synth(request: Request) -> Dict[str, Any]:
     finally:
         os.unlink(tmp)
     return {"ok": True, "sec": r.get("duration_sec"), "read": row["read"]}
+
+
+# ── 영상 보며 검수 — 완성 강 영상을 보다 M 으로 찍고, 찍은 장의 발음 칸으로 간다(longform/review.py) ──
+def _review_call(fn, *a, **kw):
+    try:
+        return fn(*a, **kw)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+@app.get("/api/review")
+def review_panel(job: str, lid: str) -> Dict[str, Any]:
+    from longform import review
+    return _review_call(review.panel, _job(job), lid)
+
+
+@app.put("/api/review/marks")
+async def review_marks(request: Request) -> Dict[str, Any]:
+    """검수표 저장 — merge=true 면 지금 검수표에 더한다(다른 PC 의 …-검수표.json 불러오기)."""
+    from longform import review
+    b = await request.json()
+    j = _job(b["job"])
+    marks = list(b.get("marks") or [])
+    if b.get("merge"):
+        marks = review.load_marks(j, b["lid"]) + marks
+    return {"marks": review.save_marks(j, b["lid"], marks)}
+
+
+@app.put("/api/review/heard")
+async def review_heard(request: Request) -> Dict[str, Any]:
+    from longform import review
+    b = await request.json()
+    return {"heard": review.add_heard(_job(b["job"]), b["lid"], b.get("nos") or [], reset=bool(b.get("reset")))}
+
+
+@app.post("/api/review/export")
+async def review_export(request: Request) -> Dict[str, Any]:
+    """영상과 「Lxx-영상검수.html」을 구글 드라이브 「영상검수/<잡>」 폴더로(영상은 바뀌었을 때만 복사)."""
+    from longform import review
+    import asyncio
+    b = await request.json()
+    return await asyncio.to_thread(_review_call, review.to_drive, _job(b["job"]), b["lid"])
+
+
+@app.post("/api/review/drive/import")
+async def review_drive_import(request: Request) -> Dict[str, Any]:
+    from longform import review
+    b = await request.json()
+    return _review_call(review.drive_import, _job(b["job"]), b["lid"])
 
 
 @app.get("/api/voice/dict")

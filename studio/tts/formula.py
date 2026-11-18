@@ -89,7 +89,7 @@ _ERR = re.compile("|".join(re.escape(k) for k in sorted(ERRORS, key=len, reverse
 _FORMULA_START = re.compile(r"(?:^|(?<=[\s(\[“\"'‘]))=(?=[A-Za-z$(\d\-\"])")
 _FMT = re.compile(r"(?<![\w#])((?:[#0?]+[,.]?)+[#0?,.%]*|[#0?,.]*#[#0?,.]*)(?![#0?A-Za-z0-9])")
 _NUM = re.compile(r"(?<![A-Za-z0-9.\-])-?\d{1,3}(?:,\d{3})+(?:\.\d+)?(?![\d])|(?<![A-Za-z0-9.,\-])-?\d+(?:\.\d+)?(?!\d|[,.]\d|\s*(?:개|명|시간|살|마리|가지|군데|곳|줄|칸|번째))")
-_TOKEN = re.compile(rf"\"[^\"]*\"|{_REF}\s*:\s*{_REF}|\$?[A-Z]{{1,3}}:\$?[A-Z]{{1,3}}(?![0-9])|{_REF}|[A-Z][A-Z0-9.]*(?=\()|TRUE|FALSE|\d+(?:\.\d+)?|<>|>=|<=|[-+*/^&=<>:,;()%]|\S")
+_TOKEN = re.compile(rf"\"[^\"]*\"|{_REF}\s*:\s*{_REF}|\$?[A-Z]{{1,3}}:\$?[A-Z]{{1,3}}(?![0-9])|{_REF}|[A-Za-z][A-Za-z0-9_.]*(?=\()|TRUE|FALSE|\d+(?:\.\d+)?|<>|>=|<=|[-+*/^&=<>:,;()%]|[A-Za-z가-힣][A-Za-z0-9가-힣_]*|\S")  # 대소문자 섞인 함수(액세스 DLookup)·필드 이름은 한 낱말로
 
 
 def _date(m: re.Match) -> str:

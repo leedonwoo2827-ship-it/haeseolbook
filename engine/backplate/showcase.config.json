@@ -40,6 +40,9 @@
     "python": null,
     "voicewright_dir": null,
     "assets_dir": null,
+    "ref_audio": null,
+    "ref_text": "",
+    "num_step": 32,
     "timeout_ms": 300000
   },
   "render": {

@@ -1,4 +1,4 @@
-"""s3 목소리: 대본 문장별 SuperTonic3 합성 → narration.wav + timing.json
+"""s3 목소리: 대본 문장별 TTS 합성(기본 OmniVoice · tts/engine.py) → narration.wav + timing.json
 
 - 문장 캐시: audio/lines/<sha1(발음 사전 적용 후 문장, 목소리, 속도)>.wav — 사전을 고치면 그 문장만 다시 — 고친 문장만 다시 합성(중단 후 이어서도 그대로 재사용)
 - 음성 체크에서 손으로 고친 발음: script/voice_fix.json {줄ID: {tts, src}} — src(고칠 때의 say)가 지금 say 와 같을 때만 쓴다
@@ -46,7 +46,8 @@ def fixed_tts(fx: Dict[str, Any], it: Dict[str, Any]) -> Optional[str]:
 
 def line_wav(job: Job, spoken: str, voice: str, speed: float) -> Path:
     """문장 wav 캐시 경로 — s3 와 음성 체크 화면이 같은 이름을 써서 미리 합성한 것을 그대로 재사용"""
-    return job.audio / "lines" / (hashlib.sha1(f"{spoken}|{voice}|{speed}".encode()).hexdigest()[:16] + ".wav")
+    tag = "|omni" if engine.engine_name() == "omnivoice" else ""      # 엔진을 바꾸면 옛 엔진 wav 를 재사용하지 않는다
+    return job.audio / "lines" / (hashlib.sha1(f"{spoken}|{voice}|{speed}{tag}".encode()).hexdigest()[:16] + ".wav")
 
 
 def _read_wav(path) -> np.ndarray:
@@ -58,7 +59,9 @@ def run(job: Job, force: bool = False) -> Dict[str, Any]:
     script = job.script()
     if not script:
         raise RuntimeError("대본이 없습니다 — s2 를 먼저 실행하세요")
-    voice, speed = job.setting("voice", "F1"), float(job.setting("speed", 1.0))
+    voice, speed = job.setting("voice", engine.default_voice()), float(job.setting("speed", 1.0))
+    import time
+    t_start = time.time()
     items = flatten(script)
     eng = engine.Engine.get()
     subject = job.setting("subject")
@@ -67,7 +70,7 @@ def run(job: Job, force: bool = False) -> Dict[str, Any]:
     for it in items:
         it["spoken"] = fixed_tts(fx, it) or engine.spoken(it["say"], subject)
     # 자막(cap)도 넣는다 — 자막만 고쳐도 timing 의 자막이 새로 써지고 s5 가 다시 굽는다(목소리 wav 는 캐시 그대로)
-    key = hashlib.sha1(repr([(i["spoken"], i["scene"], i["cap"]) for i in items] + [voice, speed, LEAD, GAP, SCENE_GAP, TAIL]).encode()).hexdigest()[:16]
+    key = hashlib.sha1(repr([(i["spoken"], i["scene"], i["cap"]) for i in items] + [voice, speed, LEAD, GAP, SCENE_GAP, TAIL, engine.engine_name()]).encode()).hexdigest()[:16]
     tpath, npath = job.audio / "timing.json", job.audio / "narration.wav"
     old = read_json(tpath)
     if old and old.get("hash") == key and npath.exists() and not force:
@@ -85,7 +88,8 @@ def run(job: Job, force: bool = False) -> Dict[str, Any]:
             new += 1
             if new % 20 == 0:
                 log(f"  합성 {idx + 1}/{len(items)}")
-    log(f"s3 목소리: 문장 {len(items)}개 (새로 합성 {new}개, 목소리 {voice})")
+    t_synth = time.time() - t_start
+    log(f"s3 목소리: 문장 {len(items)}개 (새로 합성 {new}개, 엔진 {eng.name}, 목소리 {voice}, 합성 {t_synth / 60:.1f}분)")
 
     pieces: List[np.ndarray] = []
     t = 0.0
@@ -124,8 +128,10 @@ def run(job: Job, force: bool = False) -> Dict[str, Any]:
         chapters.append({"i": ci, "title": ch["title"], "quiz": ch.get("quiz"), "start": first["start"]})
 
     engine.write_wav(npath, np.concatenate(pieces), sr)
-    timing = {"duration": duration, "voice": voice, "speed": speed, "hash": key, "cues": cues, "scenes": scenes, "chapters": chapters}
+    timing = {"duration": duration, "voice": voice, "speed": speed, "engine": eng.name, "hash": key,
+              "tts_stats": {"lines": len(items), "new": new, "synth_sec": round(t_synth, 1)},
+              "cues": cues, "scenes": scenes, "chapters": chapters}
     write_json(tpath, timing)
-    job.mark("s3", duration=duration)
-    log(f"s3 목소리 완료: {int(duration // 60)}분 {int(duration % 60)}초, 장 {len(chapters)}개")
+    job.mark("s3", duration=duration, tts_engine=eng.name, tts_synth_sec=round(t_synth, 1), tts_new=new)
+    log(f"s3 목소리 완료: {int(duration // 60)}분 {int(duration % 60)}초, 장 {len(chapters)}개 · 합성 걸린 시간 {int(t_synth // 60)}분 {int(t_synth % 60)}초 ({eng.name}, 새 문장 {new}개)")
     return timing

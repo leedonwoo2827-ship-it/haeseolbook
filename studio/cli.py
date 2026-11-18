@@ -23,7 +23,7 @@ from . import ROOT
 from .log import log, to_file
 
 STAGES = ["s0", "s1", "s2", "s3", "s4", "s5"]
-STAGE_NAMES = {"s0": "원문·정답·크롭", "s1": "대본(Claude)", "s2": "판서 계획(Claude)", "s3": "목소리(F1)",
+STAGE_NAMES = {"s0": "원문·정답·크롭", "s1": "대본(Claude)", "s2": "판서 계획(Claude)", "s3": "목소리(TTS)",
                "s4": "판서 화면", "s5": "영상·썸네일", "s6": "유튜브 업로드", "s7": "이북 연동"}
 
 
@@ -81,7 +81,9 @@ def doctor() -> int:
     log("점검")
     row("ffmpeg", bool(shutil.which("ffmpeg")), "winget install Gyan.FFmpeg")
     row("claude CLI", claude.available(), "Claude Code 설치 후 claude auth login")
-    row("SuperTonic3 모델", not engine.missing(), "setup.bat (또는 python -m studio tts-setup)")
+    row(f"TTS ({engine.engine_name()})", not engine.missing(),
+        "OmniVoice 폴더(D:/00work/261118-OmniVoice) setup.bat · 경로는 _assets/tts.json" if engine.engine_name() == "omnivoice"
+        else "setup.bat (또는 python -m studio tts-setup)")
     try:
         youtube.chrome_path()
         row("Google Chrome", True)
@@ -263,8 +265,13 @@ def main(argv: Optional[List[str]] = None) -> int:
             youtube.open_login(a.account)
         elif a.cmd == "tts-setup":
             from .tts import engine
-            engine.download(log)
-            log("SuperTonic3 준비 완료" if not engine.missing() else f"누락: {engine.missing()}")
+            if engine.engine_name() == "omnivoice":
+                from .tts import omni
+                log(f"OmniVoice 준비 완료 ({omni.config()['omnivoice']['python']})" if not engine.missing()
+                    else f"OmniVoice 누락: {engine.missing()} — OmniVoice 폴더에서 setup.bat 을 실행하고 _assets/tts.json 경로를 확인하세요")
+            else:
+                engine.download(log)
+                log("SuperTonic3 준비 완료" if not engine.missing() else f"누락: {engine.missing()}")
         elif a.cmd == "hwpx":
             from .job import mock_series
             from . import hwpx

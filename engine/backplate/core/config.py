@@ -42,8 +42,10 @@ DEFAULTS: Dict[str, Any] = {
         "max_frames": 12, "display_width": 1600, "vision_width": 1024,
     },
     "narration": {"chars_per_sec": 3.0, "voice": "F2", "speed": 1.0, "total_step": 8},
+    # engine: "omnivoice"(CUDA, ref_audio 복제) | "supertonic3"(CPU) | "none"
     "tts": {"engine": "none", "python": None, "voicewright_dir": None,
-            "assets_dir": None, "timeout_ms": 300000},
+            "assets_dir": None, "ref_audio": None, "ref_text": "", "num_step": 32,
+            "timeout_ms": 300000},
     # 모션 리마스터 — 완성 mp4 를 **재료로** 다시 굽는 별도 도구(motion-remaster).
     # ★ 이 앱 안에 넣지 않는다. 완성본을 받아 새 파일을 내는 뒷단계이고, 여기
     #   파이프라인과 아무것도 공유하지 않는다. 폴더 하나만 가리킨다 —

@@ -67,6 +67,26 @@ textarea.code{width:100%;height:560px;font:12.5px/1.5 Consolas,monospace}
 .kv{display:grid;grid-template-columns:150px 1fr;gap:6px 10px;align-items:center}
 td .b{padding:3px 8px;font-size:12px}td.row{flex-wrap:nowrap;gap:4px}td .mini{white-space:nowrap}th{white-space:nowrap}
 body.embed>header{display:none}
+/* 영상 보며 검수(longform/review.py) */
+#rv{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,1fr);gap:14px}#rv.hide{display:none}
+@media (max-width:1000px){#rv{grid-template-columns:1fr}}
+#rv video{aspect-ratio:16/9}
+.rv-now{margin-top:8px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;min-height:42px;background:#fffdf9}
+.rv-now b{color:var(--pri);margin-right:6px}
+.rv-nav{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px}.rv-nav input{width:70px}
+.rv-heard{font-weight:700;color:var(--ok);font-size:13px}
+.rv-keys{color:var(--sub);font-size:12px;margin-top:6px}
+kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;font-size:11.5px;background:#fff}
+.rv-bar{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.rv-bar b{font-size:15px;margin-right:auto}
+.rv-inbox{margin-top:8px;padding:6px 10px;border-radius:8px;background:#fff3d6;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px}
+.rv-chips{display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin:8px 0 4px}.rv-chips span{color:var(--sub);font-size:12.5px;margin-right:4px}
+.rv-list{list-style:none;margin:0;padding:0;max-height:440px;overflow:auto}
+.rv-list li{border-top:1px solid var(--line);padding:7px 2px;display:grid;grid-template-columns:auto 1fr auto;gap:2px 8px;align-items:start}
+.rv-list li.flash{animation:rvf 1.2s}@keyframes rvf{from{background:#fff3c4}to{background:transparent}}
+.rv-list a{cursor:pointer;color:var(--pri)}.rv-list .t{text-decoration:underline;font-variant-numeric:tabular-nums}
+.rv-list .tx b{margin-right:5px;color:var(--warn)}.rv-list .x{border:0;background:none;color:var(--sub);cursor:pointer}
+.rv-list .memo{grid-column:2/4;font-size:12.5px;color:var(--sub)}.rv-empty{color:var(--sub);font-size:13px;padding:8px 0}
+.vc.flash{animation:rvf 1.6s}.rv-inbox.hide{display:none}
 </style>
 </head>
 <body>
@@ -74,7 +94,7 @@ body.embed>header{display:none}
   <div><h1>Lecture Composer <span class="sub">강의 편성 엔진</span></h1></div>
   <select id="job"></select>
   <span class="tool" title="집필·교재·이미지 설계에 쓰는 Claude Code"><i class="dot" id="cldot"></i><span id="cltxt">Claude</span></span>
-  <span class="tool" title="음성 엔진(engine/backplate)"><i class="dot" id="ttdot"></i><span id="tttxt">SuperTonic3</span></span>
+  <span class="tool" title="음성 엔진(engine/backplate)"><i class="dot" id="ttdot"></i><span id="tttxt">TTS</span></span>
   <nav class="tabs">
     <button data-tab="newjob">① 원고</button>
     <button data-tab="dash" class="on">② 만들기</button>
@@ -184,12 +204,13 @@ body.embed>header{display:none}
     <div class="row" style="justify-content:space-between">
       <div class="row"><h2 style="margin:0">음성 체크</h2><select id="vc-lec"></select><span class="pill part" id="vc-count">확인 0 / 0</span>
         <label class="opt"><input type="checkbox" id="vc-todo"> 확인 안 한 장만</label></div>
-      <div class="row"><button class="b p" id="vc-bake" title="고친 발음으로 이 강을 다시 렌더·잇기(고친 섹션만, 강당 1~2시간)">음성 고친 판 굽기</button></div>
+      <div class="row"><button class="b" id="vc-rv" title="완성 영상을 보다가 이상한 곳에서 M — 표시한 장만 모아 고칩니다">🎬 영상 보며 검수</button><button class="b p" id="vc-bake" title="고친 발음으로 이 강을 다시 렌더·잇기(고친 섹션만, 강당 1~2시간)">음성 고친 판 굽기</button></div>
     </div>
     <p class="mini" style="margin:8px 0 0">장마다 듣고 <b>발음</b> 칸(TTS 가 실제로 읽는 글)을 고칩니다. 자막(화면에 보이는 원문)은 바꾸지 않습니다.
       「발음대로 다시 합성」은 그 장만 바로 다시 만들어 들어 보게 합니다 — 영상에는 「음성 고친 판 굽기」 때 들어갑니다.</p>
     <div class="row" id="vc-pills" style="margin-top:10px;gap:5px"></div>
   </div>
+  <div class="card hide" id="rv"></div>
   <div id="vc-rows"></div>
   <div class="card">
     <h2>발음 사전 <span class="mini">— 영문이 이상하게 읽히면 여기에 넣습니다 · 모든 강 · 굽기에 적용</span></h2>
@@ -552,7 +573,8 @@ async function loadVoice(){
   const sel=$("#vc-lec"), rs=(ST&&ST.rows||[]).filter(r=>r.video);
   const cur=sel.value||LS.get("vc-lec");
   sel.innerHTML=rs.map(r=>`<option value="${r.id}" ${r.id===cur?"selected":""}>${r.id} · ${vesc(r.title)}</option>`).join("") || "<option value=''>(완성된 강이 없습니다)</option>";
-  loadDict(); if(sel.value) await loadVoiceRows(sel.value); }
+  loadDict(); if(sel.value) await loadVoiceRows(sel.value);
+  if(RV.open){ if(sel.value) rvOpen(); else rvClose(); } }
 async function loadVoiceRows(lid){
   LS.set("vc-lec",lid);
   try{ VC=await api(`api/voice?job=${JOB}&lid=${lid}`); }catch(e){ $("#vc-rows").innerHTML=`<div class="card warn">${vesc(e.message)}</div>`; return; }
@@ -590,7 +612,130 @@ function drawVoice(){
       r.read=v; r.edited=true; r.v=Date.now(); $$(".vcp")[i].classList.add("ed"); const a=$(`#vc-${i} audio`); a.src=vcAudio(r); a.play();
       msg(i,`다시 합성했어요 (${(d.sec||0).toFixed(1)}초)`); }catch(e){ msg(i,e.message); } b.disabled=false; });
 }
-$("#vc-lec").onchange=e=>loadVoiceRows(e.target.value);
+$("#vc-lec").onchange=async e=>{ await loadVoiceRows(e.target.value); if(RV.open) rvOpen(); };
+$("#vc-rv").onclick=e=>{ e.currentTarget.blur(); RV.open? rvClose() : rvOpen(); };
+
+// ── 영상 보며 검수 — 완성 강 영상을 보다 M 으로 찍고, 찍은 장의 발음 칸으로 간다(longform/review.py) ──
+//   시각 → 장·문장 표는 서버가 구운 섹션들(parts/*.timing.json · 장별 자막)로 만든다. 장 번호 = 위 번호 칩.
+//   요약반 앱(backplate showcase «영상 보며 검수»)·해설북 스튜디오와 같은 방식(2026-11-18).
+const RV={open:false, C:null, marks:[], heard:new Set(), order:[], playing:null, v:null, lid:"", lastSave:0};
+const RV_LAG=1.5;   // 듣고 누르기까지 늦는 만큼 — 그 앞 문장을 찍는다
+const rvFmt=t=>`${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,"0")}`;
+const rvJson=(p,m,b)=>api(p,{method:m,headers:{"content-type":"application/json"},body:JSON.stringify({job:JOB,lid:RV.lid,...b})});
+function rvAt(t){ const c=RV.C.cues; let k=-1; for(let i=0;i<c.length&&c[i].start<=t;i++) k=i; return k<0?0:k; }
+function vcGoto(key,no){
+  // 검수표의 장 → ④ 음성 체크의 그 장 발음 칸. 「확인 안 한 장만」에 가려져 있으면 풀고 다시 그린다.
+  if(!VC) return;
+  let i=VC.rows.findIndex(r=>r.key===key); if(i<0) i=(no||0)-1;
+  if(i<0||i>=VC.rows.length){ alert(`${no}장을 찾지 못했습니다 — 다시 렌더해서 장이 바뀌었을 수 있습니다`); return; }
+  if(!$(`#vc-${i}`)){ $("#vc-todo").checked=false; drawVoice(); }
+  const el=$(`#vc-${i}`); if(!el) return;
+  el.scrollIntoView({behavior:"smooth",block:"center"}); el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash");
+  const t=el.querySelector(`[data-rd="${i}"]`); if(t) setTimeout(()=>t.focus({preventScroll:true}),400);
+}
+function rvClose(){ RV.open=false; if(RV.v) RV.v.pause(); RV.v=null; $("#rv").classList.add("hide"); $("#rv").innerHTML=""; $("#vc-rv").textContent="🎬 영상 보며 검수"; }
+async function rvOpen(){
+  const lid=$("#vc-lec").value; if(!lid) return;
+  if(RV.v) RV.v.pause();
+  RV.open=true; RV.lid=lid; RV.v=null; $("#vc-rv").textContent="🎬 검수 닫기";
+  const box=$("#rv"); box.classList.remove("hide"); box.innerHTML=`<div class="mini">영상과 시각표를 읽는 중…</div>`;
+  let C; try{ C=await api(`api/review?job=${encodeURIComponent(JOB)}&lid=${lid}`); }catch(e){ box.innerHTML=`<div class="warn">읽지 못했습니다: ${vesc(e.message)}</div>`; return; }
+  if(!C.video){ box.innerHTML=`<div class="warn">${lid} 완성 영상이 아직 없습니다 — 렌더·잇기가 끝난 뒤에 씁니다.</div>`; return; }
+  RV.C=C; RV.marks=C.marks||[]; RV.heard=new Set(C.heard||[]); RV.order=[...new Set(C.cues.map(c=>c.no))]; RV.playing=null;
+  box.innerHTML=`<div><video id="rv-v" controls preload="metadata" src="files/${encodeURIComponent(JOB)}/${C.video}"></video>
+      <div class="rv-now" id="rv-now">재생하면 지금 읽는 문장이 여기 뜹니다.</div>
+      <div class="rv-nav"><input type="number" min="1" id="rv-goin" placeholder="장" title="몇 장부터 들을지 — 번호를 넣고 Enter"><button class="b" id="rv-go">이동</button>
+        <span class="rv-heard" id="rv-heard"></span><button class="b p" id="rv-next"></button><button class="b" id="rv-reset">들은 표시 지우기</button></div>
+      <div class="rv-keys"><kbd>M</kbd> 여기 표시 · <kbd>←</kbd><kbd>→</kbd> 5초 · <kbd>Space</kbd> 재생·멈춤 · <kbd>R</kbd> 지금 문장 처음부터</div></div>
+    <div><div class="rv-bar"><b id="rv-cnt">검수표 0줄</b><button class="b" id="rv-mark" title="지금 듣는 문장을 검수표에 넣습니다 (M)">여기 표시</button>
+        <button class="b" id="rv-imp" title="다른 PC 의 «영상검수.html» 에서 저장한 …-검수표.json 을 불러와 지금 검수표에 더합니다">검수표 불러오기</button>
+        <button class="b" id="rv-exp" title="영상(mp4)과 «${lid}-영상검수.html» 을 구글 드라이브 «영상검수/${vesc(JOB)}» 폴더에 복사합니다 — 집 노트북에서 그 html 을 열어 검수합니다(영상은 바뀌었을 때만 다시 복사)">드라이브로 보내기</button>
+        <button class="b" id="rv-clr">비우기</button><input type="file" id="rv-file" accept=".json,application/json" hidden></div>
+      <div class="rv-inbox hide" id="rv-inbox"></div><div class="rv-chips" id="rv-chips"></div><ul class="rv-list" id="rv-list"></ul>
+      <div class="mini" id="rv-msg" style="margin-top:6px"></div></div>`;
+  const v=RV.v=$("#rv-v"), msg=t=>$("#rv-msg").textContent=t;
+  v.addEventListener("timeupdate",rvTick); v.addEventListener("seeked",rvTick);
+  // 들은 자리를 남긴다 — 닫았다 열거나 새로고침해도 거기서 잇는다
+  v.addEventListener("loadedmetadata",()=>{ const t=Number(LS.get(`rv.pos.${JOB}.${lid}`)||0); if(t>5){ v.currentTime=t; msg(`지난번 들은 자리(${rvFmt(t)})부터 잇습니다 — 처음부터는 검수표 시각이나 ← 로`); } },{once:true});
+  const once=(id,fn)=>$(id).onclick=e=>{ e.currentTarget.blur(); fn(); };   // 포커스를 빼야 Space 가 버튼을 또 누르지 않는다
+  once("#rv-mark",rvMark);
+  once("#rv-clr",()=>{ if(RV.marks.length&&confirm("검수표를 비울까요?")){ RV.marks=[]; rvDraw(); rvSave(); } });
+  once("#rv-imp",()=>$("#rv-file").click());
+  $("#rv-file").onchange=async()=>{ const f=$("#rv-file").files[0]; $("#rv-file").value=""; if(!f) return;
+    try{ const got=JSON.parse(await f.text()), add=Array.isArray(got)?got:(got.marks||[]); if(!add.length){ msg("검수표가 비어 있습니다"); return; }
+      const r=await rvJson("api/review/marks","PUT",{marks:add,merge:true}); RV.marks=r.marks; rvDraw(); msg(`${add.length}줄을 불러왔습니다 — 장 번호를 눌러 고치세요`); }catch(e){ msg("불러오지 못했습니다: "+e.message); } };
+  once("#rv-exp",async()=>{ const b=$("#rv-exp"); b.disabled=true; b.textContent="복사 중…";
+    try{ const r=await rvJson("api/review/export","POST",{}); msg(r.video_copied?`드라이브에 영상(${r.mb}MB)과 검수 파일을 보냈습니다 — 동기화가 끝나면 집에서 열립니다 (${r.dir})`:`검수 파일을 새로 보냈습니다 — 영상은 이미 드라이브에 있습니다 (${r.dir})`); }
+    catch(e){ msg("보내지 못했습니다: "+e.message); } b.textContent="드라이브로 보내기"; b.disabled=false; });
+  const doGo=()=>{ const n=Number($("#rv-goin").value); if(n) rvGoSlide(n,true); $("#rv-goin").blur(); };
+  once("#rv-go",doGo); $("#rv-goin").onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); doGo(); } };
+  once("#rv-next",()=>{ const n=rvNextUnheard(); if(n!=null) rvGoSlide(n,true); });
+  once("#rv-reset",async()=>{ if(!confirm("들은 장 표시를 모두 지울까요? (검수표는 그대로입니다)")) return;
+    try{ const r=await rvJson("api/review/heard","PUT",{nos:[],reset:true}); RV.heard=new Set(r.heard); rvHeard(); }catch(e){ msg(e.message); } });
+  rvInbox(C.drive); rvHeard(); rvDraw();
+}
+function rvInbox(d){
+  // 드라이브에 집에서 찍은 검수표가 새로 있으면 한 줄로 알린다
+  const files=(d&&d.files)||[], box=$("#rv-inbox"); box.classList.toggle("hide",!files.length); if(!files.length){ box.innerHTML=""; return; }
+  const n=files.reduce((a,f)=>a+(f.n||0),0);
+  box.innerHTML=`<span>드라이브에 새 검수표 ${files.length}개 · ${n}줄 (${files.map(f=>f.at).join(", ")})</span><button class="b p" id="rv-take">가져오기</button>`;
+  $("#rv-take").onclick=async e=>{ const b=e.currentTarget; b.disabled=true;
+    try{ const r=await rvJson("api/review/drive/import","POST",{}); RV.marks=r.marks; rvInbox(null); rvDraw(); $("#rv-msg").textContent=`${r.added}줄을 가져왔습니다 — 장 번호를 눌러 고치세요`; }
+    catch(err){ $("#rv-msg").textContent="가져오지 못했습니다: "+err.message; b.disabled=false; } };
+}
+async function rvSave(){ try{ const r=await rvJson("api/review/marks","PUT",{marks:RV.marks}); RV.marks=r.marks; }catch(e){ $("#rv-msg").textContent="검수표를 저장하지 못했습니다: "+e.message; } }
+function rvDraw(flash){
+  $("#rv-cnt").textContent=`검수표 ${RV.marks.length}줄`;
+  const ul=$("#rv-list"), chips=$("#rv-chips"); ul.innerHTML=""; chips.innerHTML="";
+  if(!RV.marks.length){ ul.innerHTML=`<li class="rv-empty">이상하게 들리는 곳에서 M 을 누르세요.</li>`; return; }
+  const nos=[...new Map(RV.marks.map(m=>[m.no,m])).values()].sort((a,b)=>a.no-b.no);   // 한 장에 여러 줄을 찍어도 고칠 장은 하나
+  chips.innerHTML=`<span>고칠 장 ${nos.length}개</span>`+nos.map(m=>`<button class="vcp ed" data-rvno="${m.no}" data-rvkey="${vesc(m.key||"")}" title="그 장의 발음 칸으로">${m.no}</button>`).join("");
+  chips.querySelectorAll("[data-rvno]").forEach(b=>b.onclick=()=>vcGoto(b.dataset.rvkey,+b.dataset.rvno));
+  RV.marks.forEach(m=>{ const li=document.createElement("li"); if(flash===`${m.no}:${m.i}`) li.className="flash";
+    li.innerHTML=`<a class="t" title="그 2초 앞부터 다시 듣기">${rvFmt(m.t)}</a><a class="tx" title="그 장의 발음 칸으로 갑니다"><b>${m.no}장</b>${vesc(m.text||"")}</a><button class="x" title="빼기">✕</button>`+(m.memo?`<div class="memo">${vesc(m.memo)}</div>`:"");
+    li.querySelector(".t").onclick=()=>{ RV.v.currentTime=Math.max(0,m.t-2); RV.v.play(); };
+    li.querySelector(".tx").onclick=()=>vcGoto(m.key,m.no);
+    // ★ 장·문장으로 지운다 — 저장 뒤 RV.marks 는 서버가 준 새 객체라 객체 비교로는 안 지워진다
+    li.querySelector(".x").onclick=()=>{ RV.marks=RV.marks.filter(y=>!(y.no===m.no&&y.i===m.i)); rvDraw(); rvSave(); };
+    ul.appendChild(li); });
+}
+function rvMark(){
+  if(!RV.v||!RV.C.cues.length) return;
+  const c=RV.C.cues[rvAt(Math.max(0,RV.v.currentTime-RV_LAG))], k=`${c.no}:${c.i}`;
+  if(!RV.marks.some(m=>`${m.no}:${m.i}`===k)){ RV.marks.push({no:c.no,key:c.key,i:c.i,t:Math.round(RV.v.currentTime*10)/10,text:c.text,memo:""}); RV.marks.sort((a,b)=>a.t-b.t); rvSave(); }
+  rvDraw(k);
+}
+// 안 들은 장 — 지금 자리 뒤에서 먼저 찾고, 없으면 앞에서
+function rvNextUnheard(){ const o=RV.order, i=Math.max(0,o.indexOf(RV.playing));
+  return o.slice(i+1).find(n=>!RV.heard.has(n)) ?? o.slice(0,i+1).find(n=>!RV.heard.has(n)); }
+function rvHeard(){ $("#rv-heard").textContent=`들은 장 ${RV.order.filter(n=>RV.heard.has(n)).length}/${RV.order.length}`;
+  const n=rvNextUnheard(), b=$("#rv-next"); b.classList.toggle("hide",n==null); b.textContent=`안 들은 장부터 (${n}장) ▶`; }
+function rvGoSlide(no,play){ const c=RV.C&&RV.C.cues.find(x=>x.no===no); if(!c){ $("#rv-msg").textContent=`${no}장이 없습니다`; return; }
+  RV.v.currentTime=c.start+0.01; if(play) RV.v.play(); }
+function rvTick(){
+  if(!RV.v||!RV.C||!RV.C.cues.length) return;
+  const t=RV.v.currentTime, c=RV.C.cues[rvAt(t)];
+  // 재생하다 다음 장으로 넘어가면 앞 장은 끝까지 들은 것이다
+  if(RV.playing!=null&&c.no!==RV.playing&&RV.order.indexOf(c.no)===RV.order.indexOf(RV.playing)+1&&!RV.heard.has(RV.playing)){
+    const n=RV.playing; RV.heard.add(n); rvJson("api/review/heard","PUT",{nos:[n]}).catch(()=>{}); }
+  if(RV.playing!==c.no){ RV.playing=c.no; rvHeard(); }
+  $("#rv-now").innerHTML=`<b>${c.no}장</b>${vesc(c.text)}`;
+  if(Math.abs(t-RV.lastSave)>2){ RV.lastSave=t; LS.set(`rv.pos.${JOB}.${RV.lid}`,String(Math.floor(t))); }
+}
+// 키 — 캡처 단계에서 먼저 받는다. 입력칸 안에서는 양보. e.code 로 본다(한글 자판이면 M 이 「ㅡ」로 온다)
+addEventListener("keydown",e=>{
+  if(!RV.open||!RV.v||$("#tab-voice").classList.contains("hide")) return;
+  const t=e.target; if(e.ctrlKey||e.altKey||e.metaKey) return;
+  if(t&&(t.tagName==="TEXTAREA"||t.tagName==="INPUT"||t.tagName==="SELECT")) return;
+  const k=e.code, v=RV.v;
+  if(k==="KeyM") rvMark();
+  else if(k==="ArrowLeft") v.currentTime=Math.max(0,v.currentTime-5);
+  else if(k==="ArrowRight") v.currentTime+=5;
+  else if(k==="Space") v.paused? v.play() : v.pause();
+  else if(k==="KeyR"&&RV.C.cues.length){ v.currentTime=RV.C.cues[rvAt(v.currentTime)].start; v.play(); }
+  else return;
+  e.preventDefault(); e.stopImmediatePropagation();
+},true);
 $("#vc-todo").onchange=()=>VC&&drawVoice();
 $("#vc-bake").onclick=()=>{ const lid=$("#vc-lec").value; if(!lid) return;
   if(confirm(`${lid} 를 고친 발음으로 다시 굽습니다(고친 섹션만 렌더 → 잇기, 강당 1~2시간). 계속할까요?`)){ run("make",{only:lid}); tab("dash"); } };
@@ -620,7 +765,7 @@ $("#l-save").onclick=async()=>{ try{ const d=JSON.parse(await api(`api/json?job=
 async function checkTools(){ try{ const t=await api(`api/tools?job=${JOB}`); const c=t.claude||{};
   $("#cldot").className="dot "+(c.installed&&c.logged_in?"on":"off");
   $("#cltxt").textContent = !c.installed? "Claude 없음" : c.logged_in? `Claude · ${c.email||"로그인됨"}` : "Claude 로그인 필요";
-  $("#ttdot").className="dot "+(t.tts?"on":"off"); $("#tttxt").textContent = t.tts? "SuperTonic3" : "SuperTonic3 없음"; }catch(e){} }
+  $("#ttdot").className="dot "+(t.tts?"on":"off"); $("#tttxt").textContent = (t.tts_name||"TTS") + (t.tts? "" : " 없음"); }catch(e){} }
 // 로그 막대 높이(끌기 · 두 번 누르기 · 기억)
 function setLogH(h){ h=Math.max(80, Math.min(innerHeight-120, Math.round(h))); document.documentElement.style.setProperty("--logh", h+"px"); LS.set("logh", h); }
 setLogH(+LS.get("logh")||200);

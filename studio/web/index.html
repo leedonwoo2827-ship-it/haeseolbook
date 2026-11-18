@@ -159,7 +159,7 @@ mark.left{background:#fde8e6;color:var(--bad)}
     <p class="muted">대본·판서는 Claude(구독)를 씁니다. 한도에 걸리면 재설정 시각까지 기다렸다 멈춘 문항부터 이어서 합니다. 끝난 문항·문장·화면은 다시 만들지 않습니다.</p>
   </section>
   <section id="tab-lmap" class="panel" hidden>
-    <div class="bar"><span class="lab">3부 문항(11~20회) → 1부 종합반 강별</span>
+    <div class="bar"><span class="lab">3부 문항(<span id="p3sub2">11~15회</span>) → 1부 종합반 강별</span>
       <button class="b navy" id="lmbuild">강별로 나누기(다시)</button><span class="muted" id="lminfo"></span></div>
     <p class="muted">요약집 절마다 적힌 「모의 N회 M번」으로 강을 정하고, 표기가 없는 문항은 같은 과목에서 태그가 가장 많이 겹치는 강으로 보냅니다.
       문항을 누르면 다른 강으로 옮길 수 있고, 옮긴 것(노란색)은 다시 나눠도 그대로입니다. 보라색 = 태그로 정한 문항.
@@ -283,11 +283,11 @@ document.addEventListener('click',async e=>{
 });
 async function load(){
   O=await api('/api/overview?subject='+encodeURIComponent(subject)+'&part='+part);
-  {const lr=O.lecture_rounds||[];$('#p3sub').textContent=lr.length?`${lr[0]}~${lr[lr.length-1]}회`:'없음'}
+  {const lr=O.lecture_rounds||[],fr=O.final_rounds||[],sp=a=>a.length?`${a[0]}~${a[a.length-1]}회`:'없음';$('#p3sub').textContent=sp(lr);$('#p3sub2').textContent=sp(lr);$('#p2fin').textContent=sp(fr)}
   if(!$('#tab-collect').hidden)loadCollect();
   if(!$('#tab-lc').hidden&&$('#lcframe').dataset.job!==(O.lecture_job||''))showLecture();   // 과목을 바꿨을 때만(주기 새로고침엔 그대로)
   $('#subject').innerHTML=O.subjects.map(s=>`<option ${s===subject?'selected':''}>${esc(s)}</option>`).join('');
-  const t=O.tools;$('#tools').innerHTML=[['claude','Claude'],['supertonic','SuperTonic3'],['ffmpeg','ffmpeg'],['php','PHP'],['chrome_profile','유튜브 로그인 프로필']].map(([k,n])=>`<span class="${t[k]?'':'no'}">${n}</span>`).join('');
+  const t=O.tools;$('#tools').innerHTML=[['claude','Claude'],['supertonic',t.tts_name||'TTS'],['ffmpeg','ffmpeg'],['php','PHP'],['chrome_profile','유튜브 로그인 프로필']].map(([k,n])=>`<span class="${t[k]?'':'no'}">${n}</span>`).join('');
   const A=await api('/api/accounts');if(document.activeElement!==$('#acc'))$('#acc').innerHTML=A.accounts.map(a=>`<option value="${esc(a.name)}" ${a.name===A.current?'selected':''}>채널: ${esc(a.label)}</option>`).join('');
   const T=O.totals;
   renderGuide(T);

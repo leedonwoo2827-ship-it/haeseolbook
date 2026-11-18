@@ -174,7 +174,7 @@ AI_BATCH_PROMPT = """너는 한국어 TTS(음성 합성) 발음 교정기다. �
 - 숫자·기호는 문맥에 맞게 읽는 대로(2급→이 급, 1과목→일 과목, 3개→세 개, 50%→오십 퍼센트, A1→에이 일, =→이퀄, -20→마이너스 이십).
 - 회차·번호의 앞자리 0 은 읽지 않는다(01회→일 회). 비트열은 한 자리씩 영·일(0101→영 일 영 일), 십육진수는 한 자씩(EC→이 씨).
 - 키 조합: ⊞+A→윈도우 단축키와 A, Ctrl+C→컨트롤 씨.
-- 그 밖의 글자·어순·문장부호는 바꾸지 마라. 결과에 영문·아라비아 숫자·기호가 남지 않게 하라.
+- 그 밖의 글자·어순·문장부호는 바꾸지 마라. 고칠 것이 없는 항목은 받은 글 그대로 돌려준다. 결과에 영문·아라비아 숫자·기호가 남지 않게 하라.
 - 출력은 같은 키의 JSON 객체 하나만(설명·코드펜스 없이): {{"1": "...", "2": "..."}}
 {items}"""
 
@@ -193,8 +193,11 @@ def auto_ai_fix(job: Job, slides: List[Dict[str, Any]]) -> int:
     from longform.s2_manuscript import call_llm, fix_counters, parse_json
     from longform.util import warn
     rows = load_dict(job)
+    # ★ 사용자 지시(2026-11-18): 음성을 굽기 전에 **모든 줄**을 AI 발음 교정한다(요약반·실기 영상과 같게).
+    #   예전처럼 영문·숫자·기호가 남은 줄만 보내려면 목표서 voice.auto_ai_all = false
+    every = job.get("voice.auto_ai_all", True)
     todo = [s for s in slides if (s.get("say") or "").strip() and not s.get("read_ai")
-            and leftover(job, s.get("read") or s["say"], rows)]
+            and (every or leftover(job, s.get("read") or s["say"], rows))]
     if not todo:
         return 0
     items = {str(i + 1): apply_dict(fix_counters(s.get("read") or s["say"]), rows) for i, s in enumerate(todo)}

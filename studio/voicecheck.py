@@ -58,7 +58,7 @@ def _ctx(job: Job) -> Dict[str, Any]:
     if not script:
         raise ValueError("대본이 없습니다 — 1 대본을 먼저 만드세요")
     return {"script": script, "items": flatten(script), "fx": fixes(job), "subject": job.setting("subject"),
-            "voice": job.setting("voice", "F1"), "speed": float(job.setting("speed", 1.0))}
+            "voice": job.setting("voice", engine.default_voice()), "speed": float(job.setting("speed", 1.0))}
 
 
 def _item(c: Dict[str, Any], lid: str) -> Dict[str, Any]:

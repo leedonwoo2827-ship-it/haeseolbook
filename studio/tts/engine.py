@@ -1,4 +1,7 @@
-"""SuperTonic3 TTS 엔진 — 이 저장소 안에서만 돈다(다른 폴더·프로그램 불필요).
+"""TTS 엔진 — 기본은 OmniVoice(studio/tts/omni.py, 2026-11-18~), 설정 _assets/tts.json "engine": "supertonic3" 이면 아래 SuperTonic3.
+
+  Engine.get() 이 설정대로 고른다 · missing() 도 고른 엔진 기준 · 발음(spoken)은 두 엔진 공통.
+SuperTonic3 — 이 저장소 안에서만 돈다(다른 폴더·프로그램 불필요).
 
 동기식 합성기:
   · 한국어 긴 문장 단어 누락 방지 — 문장/쉼표 단위로 잘라(최대 60자) 조각별 합성 후 이어 붙임
@@ -155,7 +158,24 @@ def drop_parens(text: str) -> str:
     return re.sub(r"\s+([,.?!])", r"\1", re.sub(r"\s{2,}", " ", text)).strip()
 
 
+def engine_name() -> str:
+    """지금 쓰는 엔진 — "omnivoice"(기본) 또는 "supertonic3" """
+    from .omni import config
+    return "supertonic3" if str(config().get("engine", "")).lower().startswith("supertonic") else "omnivoice"
+
+
+def default_voice() -> str:
+    return "W1" if engine_name() == "omnivoice" else "F1"
+
+
 def missing() -> List[str]:
+    if engine_name() == "omnivoice":
+        from .omni import missing as omni_missing
+        return omni_missing()
+    return supertonic_missing()
+
+
+def supertonic_missing() -> List[str]:
     d = assets_dir()
     out = [f"onnx/{f}" for f in ONNX_FILES if not (d / "onnx" / f).exists()]
     out += [f"voice_styles/{v}.json" for v in VOICES if not (d / "voice_styles" / f"{v}.json").exists()]
@@ -216,10 +236,11 @@ def _providers() -> List[str]:
 
 class Engine:
     _instance: Optional["Engine"] = None
+    name = "supertonic3"
 
     def __init__(self) -> None:
         from .helper import load_text_to_speech_with_providers
-        miss = missing()
+        miss = supertonic_missing()
         if miss:
             raise RuntimeError(f"SuperTonic3 모델 파일이 없습니다({len(miss)}개) — setup.bat 을 먼저 실행하세요")
         self._tts = load_text_to_speech_with_providers(str(assets_dir() / "onnx"), _providers())
@@ -228,6 +249,9 @@ class Engine:
 
     @classmethod
     def get(cls) -> "Engine":
+        if engine_name() == "omnivoice":
+            from .omni import OmniEngine
+            return OmniEngine.get()             # type: ignore[return-value]
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance
@@ -235,6 +259,8 @@ class Engine:
     def _style(self, code: str):
         from .helper import load_voice_style
         code = code.upper()
+        if code not in VOICES:                 # OmniVoice 목소리(W1)로 만든 작업을 슈퍼토닉으로 되돌렸을 때
+            code = "F1"
         if code not in VOICES:
             raise ValueError(f"목소리 코드는 {', '.join(VOICES)} 중 하나: {code}")
         if code not in self._styles:
